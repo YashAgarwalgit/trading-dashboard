@@ -1,23 +1,23 @@
-# Trading Dashboard Requirements for Cloud Deployment
+# Trading Dashboard Requirements - Python 3.13 Compatible
 # Core Framework
 Flask==3.0.0
 Flask-CORS==4.0.0
 Flask-SocketIO==5.3.6
 
-# Data & Finance
-yfinance==0.2.65
-pandas==2.1.4
+# Data & Finance (Python 3.13 compatible versions)
+yfinance==0.2.28
+pandas>=2.2.0
 
 # Networking & WebSockets
 requests==2.31.0
 python-socketio==5.10.0
 
-# Additional packages for enhanced market intelligence
-numpy==1.26.4
+# Market Intelligence (compatible versions)
+numpy>=1.26.0
 beautifulsoup4==4.12.2
 lxml==4.9.3
 textblob==0.17.1
 
-# Additional dependencies for cloud deployment
+# Cloud deployment essentials
 gunicorn==21.2.0
 eventlet==0.33.3
