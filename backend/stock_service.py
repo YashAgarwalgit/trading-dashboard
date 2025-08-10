@@ -2482,4 +2482,5 @@ if __name__ == '__main__':
     print(f"🔗 Server starting on http://{host}:{port}")
     print(f"🔧 Debug mode: {debug_mode}")
     
-    socketio.run(app, debug=debug_mode, port=port, host=host)
+    # Production-safe server configuration
+    socketio.run(app, debug=debug_mode, port=port, host=host, allow_unsafe_werkzeug=True)
