@@ -1,0 +1,66 @@
+# .gitignore for Trading Dashboard
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.env
+.venv
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+backend/data/*.db
+backend/data/trading_platform.db
+
+# Logs
+*.log
+logs/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Node modules (if any)
+node_modules/
+
+# Build files
+build/
+dist/
+
+# Temporary files
+tmp/
+temp/
+
+# Security
+.env
+*.pem
+*.key
+secrets.txt
+
+# System files
+*.pid
+*.sock

@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 Live Paper Trading Dashboard - Quantitative Finance</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+</head>
+<body>
+    <!-- Enhanced Header Structure -->
+    <header class="main-header">
+        <div class="header-content">
+            <!-- Title Row with Actions -->
+            <div class="header-top-row">
+                <div class="header-title">
+                    <h1><i class="fas fa-chart-line"></i> Live Paper Trading Dashboard V5.0</h1>
+                    <div class="market-session-status">
+                        <span class="session-indicator" id="marketSession">Market Closed</span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <!-- Price Alerts Toggle -->
+                    <button id="priceAlertsToggle" class="header-action-btn" title="Price Alerts">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge" id="alertsCount" style="display: none;">0</span>
+                    </button>
+                    <!-- Refresh All Data -->
+                    <button id="refreshAllData" class="header-action-btn" title="Refresh All Data">
+                        <i class="fas fa-sync"></i>
+                    </button>
+                    <!-- Connection Status -->
+                    <div class="connection-status-detailed">
+                        <span class="status-indicator" id="connectionStatus">
+                            <i class="fas fa-circle"></i> <span id="statusText">Connecting...</span>
+                        </span>
+                        <small id="lastUpdateTime">--</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Enhanced Metrics Row -->
+            <div class="header-metrics-row enhanced">
+                <div class="metric-card nifty-card">
+                    <div class="metric-header">
+                        <span class="metric-label">NIFTY 50</span>
+                        <i class="fas fa-chart-line metric-icon"></i>
+                    </div>
+                    <div class="metric-content">
+                        <div class="metric-value" id="idxNifty">24,363.30</div>
+                        <div class="metric-change negative" id="niftyChange">-232.85 (-0.95%)</div>
+                    </div>
+                </div>
+                
+                <div class="metric-card bank-nifty-card">
+                    <div class="metric-header">
+                        <span class="metric-label">NIFTY BANK</span>
+                        <i class="fas fa-university metric-icon"></i>
+                    </div>
+                    <div class="metric-content">
+                        <div class="metric-value" id="idxBankNifty">55,004.90</div>
+                        <div class="metric-change negative" id="bankNiftyChange">-516.25 (-0.93%)</div>
+                    </div>
+                </div>
+                
+                <div class="metric-card currency-card">
+                    <div class="metric-header">
+                        <span class="metric-label">USD/INR</span>
+                        <i class="fas fa-dollar-sign metric-icon"></i>
+                    </div>
+                    <div class="metric-content">
+                        <div class="metric-value" id="idxUSDINR">87.44</div>
+                        <div class="metric-change negative" id="usdInrChange">-0.32 (-0.37%)</div>
+                    </div>
+                </div>
+                
+                <div class="metric-card sp500-card">
+                    <div class="metric-header">
+                        <span class="metric-label">S&P 500</span>
+                        <i class="fas fa-flag-usa metric-icon"></i>
+                    </div>
+                    <div class="metric-content">
+                        <div class="metric-value" id="idxSPX">6,389.45</div>
+                        <div class="metric-change positive" id="sp500Change">+49.65 (+0.78%)</div>
+                    </div>
+                </div>
+                
+                <div class="metric-card regime-card">
+                    <div class="metric-header">
+                        <span class="metric-label">REGIME SCORE</span>
+                        <i class="fas fa-brain metric-icon"></i>
+                    </div>
+                    <div class="metric-content">
+                        <div class="metric-value regime-score" id="regimeScore">5.9<span class="regime-max">/10</span></div>
+                        <div class="regime-description" id="regimeDescription">Neutral Risk</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="portfolio-control-center">
+                <h3><i class="fas fa-briefcase"></i> Live Data Center</h3>
+                
+                <!-- Connection Status -->
+                <div class="connection-status">
+                    <div class="metric-card">
+                        <div class="metric-label">Data Feed</div>
+                        <div class="metric-value" id="connectionStatusText">Disconnected</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Live Stocks</div>
+                        <div class="metric-value" id="liveStockCount">0</div>
+                    </div>
+                </div>
+
+                <!-- Portfolio Management Section -->
+                <div class="form-group">
+                    <label for="portfolioSelect">Active Portfolio</label>
+                    <select id="portfolioSelect" class="form-control">
+                        <option value="">No Portfolios Created</option>
+                    </select>
+                </div>
+
+                <!-- Portfolio Action Buttons -->
+                <div class="portfolio-actions" id="portfolioActionButtons">
+                    <button id="createPortfolioBtn" class="btn btn--primary btn--full-width">
+                        <i class="fas fa-plus"></i> Create New Portfolio
+                    </button>
+                    <button id="deletePortfolioBtn" class="btn btn--danger btn--full-width">
+                        <i class="fas fa-trash-alt"></i> Delete Portfolio
+                    </button>
+                </div>
+
+                <!-- Create Portfolio Modal -->
+                <div id="createPortfolioModal" class="modal hidden">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>Create New Portfolio</h3>
+                            <button class="modal-close" id="closeCreateModal">&times;</button>
+                        </div>
+                        <form id="createPortfolioForm">
+                            <div class="modal-body">
+                                <div class="form-group">
+                                    <label for="portfolioName">Portfolio Name *</label>
+                                    <input type="text" id="portfolioName" class="form-control" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="portfolioCapital">Starting Capital *</label>
+                                    <input type="number" id="portfolioCapital" class="form-control" min="1000" step="100" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="portfolioDescription">Description (Optional)</label>
+                                    <textarea id="portfolioDescription" class="form-control" rows="3"></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn--outline" id="cancelCreateBtn">Cancel</button>
+                                <button type="submit" class="btn btn--primary">Create Portfolio</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Delete Portfolio Modal -->
+                <div id="deletePortfolioModal" class="modal hidden">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>Delete Portfolio</h3>
+                            <button class="modal-close" id="closeDeleteModal">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="warning-message">
+                                <i class="fas fa-exclamation-triangle" style="color: #dc2626; font-size: 48px; margin-bottom: 16px;"></i>
+                                <h4>Are you sure you want to delete this portfolio?</h4>
+                                <p id="deletePortfolioName">Portfolio: </p>
+                                <div class="warning-box">
+                                    <p><strong>This action will permanently delete:</strong></p>
+                                    <ul>
+                                        <li>All positions and holdings</li>
+                                        <li>Complete transaction history</li>
+                                        <li>All analytics data</li>
+                                    </ul>
+                                    <p style="color: #dc2626; font-weight: bold;">This cannot be undone!</p>
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-top: 20px;">
+                                <label for="deleteConfirmation">Type "DELETE" to confirm:</label>
+                                <input type="text" id="deleteConfirmation" class="form-control" placeholder="Type DELETE">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn--outline" id="cancelDeleteBtn">Cancel</button>
+                            <button type="button" class="btn btn--danger" id="confirmDeleteBtn" disabled>Delete Portfolio</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Portfolio Summary (Enhanced) -->
+                <div id="portfolioSummary" class="portfolio-summary" style="display: none;">
+                    <div class="metric-card">
+                        <div class="metric-label">Portfolio Value (₹)</div>
+                        <div class="metric-value" id="totalValue">₹0.00</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Available Cash (₹)</div>
+                        <div class="metric-value" id="availableCash">₹0.00</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Total P&L (₹)</div>
+                        <div class="metric-value" id="totalPL">₹0.00</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Live Positions</div>
+                        <div class="metric-value" id="positionCount">0</div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <h4>Quick Actions</h4>
+                    <button class="btn btn--secondary btn--sm btn--full-width" onclick="tradingPlatform.refreshAllStocks()">
+                        <i class="fas fa-sync"></i> Refresh All Data
+                    </button>
+                    <button class="btn btn--outline btn--sm btn--full-width" onclick="tradingPlatform.clearWatchlist()">
+                        <i class="fas fa-trash"></i> Clear Watchlist
+                    </button>
+                    <button class="btn btn--primary btn--sm btn--full-width" onclick="tradingPlatform.showBuyModal()" style="margin-top: 8px;">
+                        <i class="fas fa-plus"></i> Quick Buy
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Tab Navigation -->
+            <nav class="tab-navigation">
+                <button class="tab-btn active" data-tab="dashboard">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </button>
+                <button class="tab-btn" data-tab="portfolio">
+                    <i class="fas fa-chart-pie"></i> Portfolio Manager
+                </button>
+                <button class="tab-btn" data-tab="trading">
+                    <i class="fas fa-exchange-alt"></i> Live Trading
+                </button>
+                <button class="tab-btn" data-tab="market">
+                    <i class="fas fa-globe"></i> Market Intelligence
+                </button>
+                <button class="tab-btn" data-tab="technical-indicators">
+                    <i class="fas fa-chart-bar"></i> Technical Indicators
+                </button>
+            </nav>
+
+            <!-- Tab Contents -->
+            <div class="tab-content">
+                <!-- Dashboard Tab -->
+                <div id="dashboard-tab" class="tab-pane active">
+                    <div class="dashboard-grid">
+                        <!-- Live System Status -->
+                        <div class="metrics-row">
+                            <div class="card metric-card">
+                                <h4>Connection Status</h4>
+                                <div class="metric-value large" id="systemStatus">Initializing...</div>
+                                <div class="metric-change" id="lastUpdate">Starting up...</div>
+                            </div>
+                            <div class="card metric-card">
+                                <h4>Active Stocks</h4>
+                                <div class="metric-value large" id="dashActiveStocks">0</div>
+                                <div class="metric-change">Live feeds</div>
+                            </div>
+                            <div class="card metric-card">
+                                <h4>Open Orders</h4>
+                                <div class="metric-value large" id="dashOpenOrders">0</div>
+                                <div class="metric-change">Pending execution</div>
+                            </div>
+                            <div class="card metric-card">
+                                <h4>Portfolios</h4>
+                                <div class="metric-value large" id="dashPortfolios">0</div>
+                                <div class="metric-change">Created</div>
+                            </div>
+                        </div>
+
+                        <!-- Live Stock Input -->
+                        <div class="card">
+                            <h4><i class="fas fa-plus-circle"></i> Add Live Stock Data</h4>
+                            <div class="stock-input-section">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="stockTicker">Enter Stock Ticker</label>
+                                        <input type="text" id="stockTicker" class="form-control" 
+                                               placeholder="e.g., RELIANCE, TCS, AAPL, TSLA" 
+                                               list="stockSuggestions">
+                                        <datalist id="stockSuggestions"></datalist>
+                                        <small class="form-help">Indian stocks: RELIANCE, TCS, INFY | US stocks: AAPL, MSFT, GOOGL</small>
+                                    </div>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="button" id="addStockBtn" class="btn btn--primary">
+                                        <i class="fas fa-plus"></i> Add Stock
+                                    </button>
+                                    <button type="button" id="refreshBtn" class="btn btn--secondary">
+                                        <i class="fas fa-sync"></i> Refresh All
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Live Stock Display -->
+                        <div class="card">
+                            <h4><i class="fas fa-chart-line"></i> Live Stock Watchlist</h4>
+                            <div id="liveStockData" class="live-stock-display">
+                                <div class="empty-state">
+                                    <i class="fas fa-chart-line fa-3x"></i>
+                                    <h3>No Live Stocks Added</h3>
+                                    <p>Add stock tickers above to start monitoring live prices</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Portfolio Manager Tab (Enhanced) -->
+                <div id="portfolio-tab" class="tab-pane">
+                    <div class="portfolio-management">
+                        <!-- Portfolio Selection & Overview -->
+                        <div class="card">
+                            <div class="card__header">
+                                <h3><i class="fas fa-briefcase"></i> Portfolio Manager</h3>
+                                <button class="btn btn--primary" onclick="tradingPlatform.showCreatePortfolioModal()">
+                                    <i class="fas fa-plus"></i> New Portfolio
+                                </button>
+                            </div>
+                            <div class="card__body">
+                                <div id="portfolioContent">
+                                    <div class="empty-state">
+                                        <i class="fas fa-briefcase fa-3x"></i>
+                                        <h3>No Portfolio Selected</h3>
+                                        <p>Create a portfolio to start tracking your live positions and execute trades</p>
+                                        <button class="btn btn--primary" onclick="tradingPlatform.showCreatePortfolioModal()">
+                                            <i class="fas fa-plus"></i> Create First Portfolio
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Portfolio Positions (Dynamic Display) -->
+                        <div id="portfolioPositions" class="portfolio-positions">
+                            <div class="empty-state">
+                                <i class="fas fa-chart-pie fa-2x"></i>
+                                <h3>No Positions</h3>
+                                <p>Start buying stocks to build your portfolio</p>
+                            </div>
+                        </div>
+
+                        <!-- Portfolio Analytics -->
+                        <div class="card" id="portfolioAnalytics" style="display: none;">
+                            <div class="card__header">
+                                <h3><i class="fas fa-chart-bar"></i> Portfolio Analytics</h3>
+                                <button class="btn btn--outline btn--sm" onclick="tradingPlatform.updatePortfolioDisplay()">
+                                    <i class="fas fa-sync"></i> Refresh
+                                </button>
+                            </div>
+                            <div class="card__body">
+                                <div class="analytics-grid">
+                                    <div class="analytics-item">
+                                        <span class="analytics-label">Total Return:</span>
+                                        <span class="analytics-value" id="portfolioTotalReturn">0.00%</span>
+                                    </div>
+                                    <div class="analytics-item">
+                                        <span class="analytics-label">Best Performer:</span>
+                                        <span class="analytics-value" id="portfolioBestStock">-</span>
+                                    </div>
+                                    <div class="analytics-item">
+                                        <span class="analytics-label">Worst Performer:</span>
+                                        <span class="analytics-value" id="portfolioWorstStock">-</span>
+                                    </div>
+                                    <div class="analytics-item">
+                                        <span class="analytics-label">Diversification:</span>
+                                        <span class="analytics-value" id="portfolioDiversification">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Trading Tab (Enhanced) -->
+                <div id="trading-tab" class="tab-pane">
+                    <div class="trading-terminal">
+                        <!-- Stock Data Lookup (Enhanced) -->
+                        <div class="stock-input-section card">
+                            <div class="card__header">
+                                <h3><i class="fas fa-search"></i> Stock Data Lookup</h3>
+                            </div>
+                            <div class="card__body">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="tradingStockTicker">Stock Ticker</label>
+                                        <input type="text" id="tradingStockTicker" class="form-control" 
+                                               placeholder="Enter ticker (RELIANCE, AAPL, etc.)" 
+                                               list="tradingStockSuggestions">
+                                        <datalist id="tradingStockSuggestions"></datalist>
+                                        <small class="form-help">Search and get live data for any stock</small>
+                                    </div>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="button" id="lookupStockBtn" class="btn btn--primary">
+                                        <i class="fas fa-search"></i> Get Live Data
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Live Market Data Display -->
+                        <div class="live-stock-display card">
+                            <div class="card__header">
+                                <h3><i class="fas fa-chart-line"></i> Live Market Data</h3>
+                            </div>
+                            <div class="card__body">
+                                <div class="empty-state">
+                                    <i class="fas fa-search fa-2x"></i>
+                                    <p>Search for stocks above to see live market data</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Order Entry (Enhanced) -->
+                        <div class="card order-entry">
+                            <div class="card__header">
+                                <h3><i class="fas fa-exchange-alt"></i> Execute Trade</h3>
+                            </div>
+                            <div class="card__body">
+                                <form id="orderForm" class="order-form">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="orderSymbol">Symbol</label>
+                                            <input type="text" id="orderSymbol" name="symbol" class="form-control" 
+                                                   placeholder="e.g., AAPL" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="orderType">Order Type</label>
+                                            <select id="orderType" name="orderType" class="form-control">
+                                                <option value="Market">Market (Execute Now)</option>
+                                                <option value="Limit">Limit</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="orderQuantity">Quantity</label>
+                                            <input type="number" id="orderQuantity" name="quantity" class="form-control" 
+                                                   placeholder="100" min="1" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="orderPrice">Price (Reference)</label>
+                                            <input type="number" id="orderPrice" name="price" class="form-control" 
+                                                   placeholder="Current market price" step="0.01" readonly>
+                                            <small class="form-help">Auto-filled from live data</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button type="submit" class="btn btn--primary">
+                                            <i class="fas fa-shopping-cart"></i> Buy at Market Price
+                                        </button>
+                                        <button type="button" class="btn btn--outline">
+                                            <i class="fas fa-calculator"></i> Calculate Cost
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- CSV Portfolio Import (New Feature) -->
+                        <div class="card csv-portfolio-import">
+                            <div class="card__header">
+                                <h3><i class="fas fa-file-csv"></i> CSV Portfolio Import</h3>
+                                <small>Create portfolio from CSV file with tickers and weights</small>
+                            </div>
+                            <div class="card__body">
+                                <div class="csv-import-section">
+                                    <div class="form-group">
+                                        <label for="csvFile">Upload CSV File</label>
+                                        <input type="file" id="csvFile" accept=".csv" class="form-control">
+                                        <small class="form-help">CSV format: Column 1: Ticker (e.g., AAPL, RELIANCE.NS), Column 2: Weight (0.0-1.0)</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="csvPortfolioName">Portfolio Name</label>
+                                        <input type="text" id="csvPortfolioName" class="form-control" 
+                                               placeholder="My CSV Portfolio" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="csvPortfolioValue">Total Portfolio Value (₹)</label>
+                                        <input type="number" id="csvPortfolioValue" class="form-control" 
+                                               placeholder="1000000" min="10000" step="1000" required>
+                                        <small class="form-help">Total value to allocate across all positions</small>
+                                    </div>
+                                    <div class="csv-preview" id="csvPreview" style="display: none;">
+                                        <h6>Preview:</h6>
+                                        <div class="csv-preview-content" id="csvPreviewContent"></div>
+                                        <div class="csv-summary" id="csvSummary"></div>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button type="button" id="previewCsvBtn" class="btn btn--outline">
+                                            <i class="fas fa-eye"></i> Preview CSV
+                                        </button>
+                                        <button type="button" id="createCsvPortfolioBtn" class="btn btn--primary" disabled>
+                                            <i class="fas fa-plus"></i> Create Portfolio from CSV
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Order History -->
+                        <div class="card">
+                            <div class="card__header">
+                                <h3><i class="fas fa-list"></i> Order History</h3>
+                                <small>Recent transactions</small>
+                            </div>
+                            <div class="card__body">
+                                <table class="orders-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Time</th>
+                                            <th>Symbol</th>
+                                            <th>Side</th>
+                                            <th>Quantity</th>
+                                            <th>Price</th>
+                                            <th>Status</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="openOrdersBody">
+                                        <tr>
+                                            <td colspan="7" class="text-center">No orders placed</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Market Intelligence Tab (Enhanced) -->
+                <div id="market-tab" class="tab-pane">
+                    <div class="market-intelligence">
+                        <!-- Market News & Headlines Section -->
+                        <div class="card">
+                            <div class="card__header">
+                                <h3><i class="fas fa-newspaper"></i> Market News & Headlines</h3>
+                                <button class="btn btn--sm btn--outline" onclick="if(window.marketNews) window.marketNews.refreshNews()">
+                                    <i class="fas fa-sync"></i> Refresh News
+                                </button>
+                            </div>
+                            <div class="card__body">
+                                <div id="marketNewsSection" class="market-news-section">
+                                    <div class="news-tabs">
+                                        <button class="news-tab active" data-tab="headlines">Headlines</button>
+                                        <button class="news-tab" data-tab="watchlist">Watchlist News</button>
+                                        <button class="news-tab" data-tab="trending">Trending Topics</button>
+                                        <button class="news-tab" data-tab="analysis">Sentiment Analysis</button>
+                                    </div>
+
+                                    <div class="news-content">
+                                        <div class="news-panel active" id="headlines-panel">
+                                            <div class="news-list" id="headlinesList">
+                                                <div class="news-loading">
+                                                    <div class="spinner"></div>
+                                                    <p>Loading market headlines...</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="news-panel" id="watchlist-panel">
+                                            <div class="news-list" id="watchlistNews">
+                                                <div class="empty-news">
+                                                    <i class="fas fa-chart-line fa-2x"></i>
+                                                    <p>Add stocks to watchlist to see related news</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="news-panel" id="trending-panel">
+                                            <div class="trending-topics" id="trendingTopics">
+                                                <div class="news-loading">
+                                                    <div class="spinner"></div>
+                                                    <p>Analyzing trending topics...</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="news-panel" id="analysis-panel">
+                                            <div class="analysis-content" id="analysisContent">
+                                                <div class="sentiment-overview">
+                                                    <div class="sentiment-meter">
+                                                        <div class="sentiment-bar">
+                                                            <div class="sentiment-fill" id="sentimentFill"></div>
+                                                        </div>
+                                                        <div class="sentiment-labels">
+                                                            <span class="bearish">Bearish</span>
+                                                            <span class="neutral">Neutral</span>
+                                                            <span class="bullish">Bullish</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="sentiment-score">
+                                                        <span id="sentimentValue">0</span>
+                                                        <small id="sentimentLabel">Analyzing...</small>
+                                                    </div>
+                                                </div>
+
+                                                <div class="analysis-section">
+                                                    <h6>Market Sentiment Breakdown</h6>
+                                                    <div class="sentiment-breakdown" id="sentimentBreakdown">
+                                                        <div class="sentiment-item">
+                                                            <span class="sentiment-category">Positive News:</span>
+                                                            <span class="sentiment-count" id="positiveCount">0</span>
+                                                        </div>
+                                                        <div class="sentiment-item">
+                                                            <span class="sentiment-category">Neutral News:</span>
+                                                            <span class="sentiment-count" id="neutralCount">0</span>
+                                                        </div>
+                                                        <div class="sentiment-item">
+                                                            <span class="sentiment-category">Negative News:</span>
+                                                            <span class="sentiment-count" id="negativeCount">0</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Market Overview -->
+                        <div class="card">
+                            <div class="card__header">
+                                <h3><i class="fas fa-globe"></i> Live Market Overview</h3>
+                                <button class="btn btn--sm btn--outline" onclick="tradingPlatform.updateMarketView()">
+                                    <i class="fas fa-sync"></i> Refresh
+                                </button>
+                            </div>
+                            <div class="card__body">
+                                <div id="marketOverview" class="market-overview">
+                                    <div class="empty-state">
+                                        <i class="fas fa-globe fa-3x"></i>
+                                        <h3>No Market Data</h3>
+                                        <p>Add stocks to your watchlist to see live market data here</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AI Enhanced Market Overview (isolated container to avoid conflicts) -->
+                        <div class="card">
+                            <div class="card__header">
+                                <h3><i class="fas fa-robot"></i> AI Market Overview</h3>
+                                <small>Global indices, regime, fear & greed, correlations</small>
+                            </div>
+                            <div class="card__body">
+                                <div id="enhancedMarketOverview" class="market-overview-enhanced">
+                                    <div class="empty-state">
+                                        <i class="fas fa-brain fa-3x"></i>
+                                        <h3>Loading AI Insights...</h3>
+                                        <p>This panel updates with global market intelligence</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Regime Scores and Factors -->
+                        <div class="card">
+                            <div class="card__header">
+                                <h3><i class="fas fa-brain"></i> Market Regime Dashboard</h3>
+                                <small>Six-factor composite score and drivers</small>
+                            </div>
+                            <div class="card__body">
+                                <div class="analytics-grid">
+                                    <div class="analytics-item">
+                                        <span class="analytics-label">Regime Score:</span>
+                                        <span class="analytics-value" id="regimeScoreMirror">See header</span>
+                                    </div>
+                                    <div class="analytics-item">
+                                        <span class="analytics-label">S&P 500 Realized Vol (ann):</span>
+                                        <span class="analytics-value" id="spxVolAnn">--</span>
+                                    </div>
+                                </div>
+                                <div class="grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+                                    <canvas id="factorScoresChart" height="200"></canvas>
+                                    <canvas id="regimeScoreChart" height="200"></canvas>
+                                </div>
+                                <div class="table-container" style="margin-top: 16px;">
+                                    <table class="orders-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Factor</th>
+                                                <th class="text-right">Value</th>
+                                                <th class="text-right">Score</th>
+                                                <th>Details</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="regimeFactorsBody">
+                                            <tr><td colspan="4" class="text-center">Loading...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Market Analytics -->
+                        <div class="card">
+                            <div class="card__header">
+                                <h3><i class="fas fa-chart-bar"></i> Market Analytics</h3>
+                            </div>
+                            <div class="card__body">
+                                <div id="marketAnalytics" class="market-analytics">
+                                    <div class="analytics-grid">
+                                        <div class="analytics-item">
+                                            <span class="analytics-label">Total Stocks Monitored:</span>
+                                            <span class="analytics-value" id="totalStocksCount">0</span>
+                                        </div>
+                                        <div class="analytics-item">
+                                            <span class="analytics-label">Gainers:</span>
+                                            <span class="analytics-value positive" id="gainersCount">0</span>
+                                        </div>
+                                        <div class="analytics-item">
+                                            <span class="analytics-label">Losers:</span>
+                                            <span class="analytics-value negative" id="losersCount">0</span>
+                                        </div>
+                                        <div class="analytics-item">
+                                            <span class="analytics-label">Average Change:</span>
+                                            <span class="analytics-value" id="avgChange">0.00%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- System Information -->
+                        <div class="card">
+                            <h3><i class="fas fa-info-circle"></i> System Information</h3>
+                            <div class="system-info">
+                                <div class="info-item">
+                                    <span>Data Source:</span>
+                                    <span class="info-value">Yahoo Finance (yfinance)</span>
+                                </div>
+                                <div class="info-item">
+                                    <span>Update Frequency:</span>
+                                    <span class="info-value">Every 5 seconds</span>
+                                </div>
+                                <div class="info-item">
+                                    <span>Markets Supported:</span>
+                                    <span class="info-value">NSE, BSE, US Exchanges</span>
+                                </div>
+                                <div class="info-item">
+                                    <span>Total Stocks Available:</span>
+                                    <span class="info-value">500 Indian, 200 US</span>
+                                </div>
+                                <div class="info-item">
+                                    <span>Connection Status:</span>
+                                    <span class="info-value" id="apiConnectionStatus">Checking...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Technical Indicators Tab -->
+                <div id="technical-indicators-tab" class="tab-pane">
+                    <div id="technical-indicators-content" class="technical-indicators-section"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Create Portfolio Modal -->
+    <div id="createPortfolioModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-plus"></i> Create New Portfolio</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="createPortfolioForm">
+                    <div class="form-group">
+                        <label for="portfolioName">Portfolio Name</label>
+                        <input type="text" id="portfolioName" name="portfolioName" class="form-control" 
+                               placeholder="Enter portfolio name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="portfolioCapital">Initial Capital (₹)</label>
+                        <input type="number" id="portfolioCapital" name="portfolioCapital" class="form-control" 
+                               placeholder="100000" min="1000" step="0.01" required>
+                        <small class="form-help">Minimum ₹1,000 required to start trading</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="portfolioDescription">Description (Optional)</label>
+                        <textarea id="portfolioDescription" name="portfolioDescription" class="form-control" 
+                                  placeholder="Portfolio description..." rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn--outline modal-close">Cancel</button>
+                <button type="submit" form="createPortfolioForm" class="btn btn--primary">
+                    <i class="fas fa-plus"></i> Create Portfolio
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Buy Stock Modal -->
+    <div id="buyStockModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-plus"></i> Buy Stock</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="buyStockForm">
+                    <div class="form-group">
+                        <label for="buySymbol">Stock Symbol</label>
+                        <input type="text" id="buySymbol" class="form-control" 
+                               placeholder="AAPL" required list="buyStockSuggestions">
+                        <datalist id="buyStockSuggestions"></datalist>
+                    </div>
+                    <div class="form-group">
+                        <label for="buyQuantity">Quantity</label>
+                        <input type="number" id="buyQuantity" class="form-control" 
+                               min="1" placeholder="100" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="buyPrice">Price per Share (USD)</label>
+                        <input type="number" id="buyPrice" class="form-control" 
+                               step="0.01" placeholder="Current market price" required>
+                        <small class="form-help">Use current market price in USD. Total cost will be shown in INR</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Total Cost (₹)</label>
+                        <div class="form-control-static" id="buyTotalCost">₹0.00</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn--outline modal-close">Cancel</button>
+                <button type="submit" form="buyStockForm" class="btn btn--primary">
+                    <i class="fas fa-shopping-cart"></i> Buy Stock
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sell Stock Modal -->
+    <div id="sellStockModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-minus"></i> Sell Stock</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="sellStockForm">
+                    <div class="form-group">
+                        <label for="sellSymbol">Stock Symbol</label>
+                        <input type="text" id="sellSymbol" class="form-control" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="sellQuantity">Quantity <span class="max-quantity"></span></label>
+                        <input type="number" id="sellQuantity" class="form-control" 
+                               min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="sellPrice">Price per Share (USD)</label>
+                        <input type="number" id="sellPrice" class="form-control" 
+                               step="0.01" placeholder="Current market price" required>
+                        <small class="form-help">Use current market price in USD. Total proceeds will be shown in INR</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Total Proceeds (₹)</label>
+                        <div class="form-control-static" id="sellTotalProceeds">₹0.00</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn--outline modal-close">Cancel</button>
+                <button type="submit" form="sellStockForm" class="btn btn--primary">
+                    <i class="fas fa-hand-holding-usd"></i> Sell Stock
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="loading-indicator hidden">
+        <div class="loading-spinner"></div>
+        <p>Fetching live data...</p>
+    </div>
+
+    <!-- Status Notification -->
+    <div id="statusNotification" class="status-notification hidden">
+        <div class="status-content">
+            <i class="status-icon"></i>
+            <span class="status-message"></span>
+            <button class="status-close">&times;</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="app.js"></script>
+    <script src="market_intelligence_enhanced.js"></script>
+    <script src="portfolio-enhancements.js"></script>
+    <script src="technical_indicators.js"></script>
+    <script src="price_alerts.js"></script>
+    <script src="performance_monitor.js"></script>
+    <script src="market_news.js"></script>
+</body>
+</html>

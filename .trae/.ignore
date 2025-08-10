@@ -1,0 +1,9 @@
+data/trading_platform.db
+__pycache__/    
+requirements.txt
+claude_opus_system_prompt.md
+README.md
+.vscode/
+.qodo/
+
+

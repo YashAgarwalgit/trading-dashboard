@@ -1,0 +1,19 @@
+# Core Framework
+Flask==3.0.0                 # Web framework
+Flask-CORS==4.0.0           # Cross-origin resource sharing
+Flask-SocketIO==5.3.6       # WebSocket support
+
+# Data & Finance
+yfinance==0.2.65            # Yahoo Finance API wrapper
+pandas==2.1.4               # Data manipulation
+sqlite3                     # Database (built-in)
+
+# Networking
+requests==2.31.0            # HTTP client
+python-socketio==5.10.0     # Socket.IO server
+
+# Additional packages for enhanced market intelligence
+numpy==1.26.4               # Numerical computing
+beautifulsoup4==4.12.2      # HTML parsing for sentiment analysis
+lxml==4.9.3                 # XML/HTML parser
+textblob==0.17.1            # Sentiment analysis
