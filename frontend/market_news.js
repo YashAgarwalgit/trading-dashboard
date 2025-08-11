@@ -2,6 +2,13 @@
 console.log('🔥 CRITICAL: market_news.js script loaded!');
 console.log('🔥 CRITICAL: Current time:', new Date().toISOString());
 
+// API Configuration - Auto-detect based on environment
+const API_CONFIG = (() => {
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const baseUrl = isLocal ? 'http://localhost:5000' : window.location.origin;
+    return `${baseUrl}/api`;
+})();
+
 // Enhancement 5: Intelligent Market News & Sentiment Analysis
 class MarketNewsAnalyzer {
     constructor() {
@@ -163,7 +170,7 @@ class MarketNewsAnalyzer {
             <div class="news-loading">
                 <div class="spinner"></div>
                 <p>Fetching real market news...</p>
-                <p><small>API: ${window.tradingPlatform?.stockAPI || 'http://localhost:5000/api'}/market/news</small></p>
+                <p><small>API: ${API_CONFIG}/market/news</small></p>
             </div>
         `;
         
@@ -197,7 +204,7 @@ class MarketNewsAnalyzer {
         // Real news API integration - focus on Indian markets (60%) + Global (40%)
         try {            
             // Use consistent API base like other parts of the app
-            const apiBase = window.tradingPlatform?.stockAPI || 'http://localhost:5000/api';
+            const apiBase = API_CONFIG;
             
             // Try the main endpoint first (which handles Indian/Global ratio)
             const response = await fetch(`${apiBase}/market/news`);
@@ -317,9 +324,9 @@ class MarketNewsAnalyzer {
         try {
             // Try multiple Indian market news sources
             const sources = [
-                `${window.tradingPlatform?.stockAPI || 'http://localhost:5000/api'}/market/indian-news`,
-                `${window.tradingPlatform?.stockAPI || 'http://localhost:5000/api'}/market/nse-news`,
-                `${window.tradingPlatform?.stockAPI || 'http://localhost:5000/api'}/market/bse-news`
+                `${API_CONFIG}/market/indian-news`,
+                `${API_CONFIG}/market/nse-news`,
+                `${API_CONFIG}/market/bse-news`
             ];
             
             for (const url of sources) {
@@ -349,7 +356,7 @@ class MarketNewsAnalyzer {
 
     async fetchGlobalMarketNews() {
         try {
-            const response = await fetch(`${window.tradingPlatform?.stockAPI || 'http://localhost:5000/api'}/market/global-news`);
+            const response = await fetch(`${API_CONFIG}/market/global-news`);
             if (response.ok) {
                 const data = await response.json();
                 if (!data.error && (data.articles || data.news || []).length > 0) {
@@ -829,7 +836,7 @@ class MarketNewsAnalyzer {
         
         try {
             // Use consistent API base like other parts of the app
-            const apiBase = window.tradingPlatform?.stockAPI || 'http://localhost:5000/api';
+            const apiBase = API_CONFIG;
             console.log('DEBUG: Fetching trending from:', `${apiBase}/market/trending`);
             
             // Try to fetch real trending data
@@ -1382,7 +1389,7 @@ window.debugMarketNews = async function() {
     
     console.log('3. Testing direct API call...');
     try {
-        const apiUrl = `${window.tradingPlatform?.stockAPI || 'http://localhost:5000/api'}/market/news`;
+        const apiUrl = `${API_CONFIG}/market/news`;
         console.log('   API URL:', apiUrl);
         
         const response = await fetch(apiUrl);
