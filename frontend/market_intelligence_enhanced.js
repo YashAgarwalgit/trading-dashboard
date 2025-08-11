@@ -21,6 +21,231 @@ class EnhancedMarketIntelligence {
             info: '#0891b2',
             gradient: ['#1FB8CD', '#2563eb', '#16a34a', '#d97706', '#dc2626', '#8b5cf6']
         };
+        
+        // Active update guards
+        this.updateGuards = new Set();
+        
+        // Initialize connection status and loading state management
+        this.initializeVisualEnhancements();
+    }
+
+    // ===== VISUAL ENHANCEMENTS SYSTEM =====
+    
+    initializeVisualEnhancements() {
+        // Create connection status indicator
+        this.createConnectionStatus();
+        
+        // Set up loading state management
+        this.loadingStates = new Map();
+        
+        // Initialize data freshness tracking
+        this.dataFreshness = new Map();
+        
+        // Add global error handling for visual feedback
+        window.addEventListener('unhandledrejection', (event) => {
+            this.showConnectionStatus('error', 'Connection Error');
+        });
+    }
+
+    createConnectionStatus() {
+        const statusElement = document.createElement('div');
+        statusElement.id = 'connection-status';
+        statusElement.className = 'connection-status hidden';
+        document.body.appendChild(statusElement);
+        this.connectionStatusElement = statusElement;
+    }
+
+    // Loading State Management
+    showLoadingState(elementId, type = 'default') {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+
+        // Set loading state
+        this.loadingStates.set(elementId, true);
+        element.classList.add('loading');
+
+        // Create skeleton content based on type
+        const skeletonContent = this.createSkeletonContent(type);
+        element.innerHTML = skeletonContent;
+    }
+
+    hideLoadingState(elementId) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+
+        this.loadingStates.set(elementId, false);
+        element.classList.remove('loading');
+    }
+
+    createSkeletonContent(type) {
+        switch (type) {
+            case 'card':
+                return `
+                    <div class="skeleton-loader skeleton-title"></div>
+                    <div class="skeleton-loader skeleton-price"></div>
+                    <div class="skeleton-loader skeleton-text"></div>
+                    <div class="skeleton-loader skeleton-text" style="width: 80%;"></div>
+                `;
+            case 'chart':
+                return `
+                    <div class="skeleton-loader skeleton-title"></div>
+                    <div class="skeleton-loader skeleton-chart"></div>
+                `;
+            case 'list':
+                return `
+                    <div class="skeleton-loader skeleton-text"></div>
+                    <div class="skeleton-loader skeleton-text"></div>
+                    <div class="skeleton-loader skeleton-text" style="width: 90%;"></div>
+                    <div class="skeleton-loader skeleton-text" style="width: 70%;"></div>
+                `;
+            default:
+                return `
+                    <div class="loading-spinner">
+                        <span>Loading</span>
+                        <div class="spinner-dot"></div>
+                        <div class="spinner-dot"></div>
+                        <div class="spinner-dot"></div>
+                    </div>
+                `;
+        }
+    }
+
+    // Connection Status Management
+    showConnectionStatus(status, message) {
+        if (!this.connectionStatusElement) return;
+
+        const statusClasses = {
+            'online': 'status-online',
+            'offline': 'status-offline', 
+            'loading': 'status-loading',
+            'error': 'status-offline'
+        };
+
+        const statusMessages = {
+            'online': 'Connected',
+            'offline': 'Disconnected',
+            'loading': 'Connecting...',
+            'error': message || 'Connection Error'
+        };
+
+        this.connectionStatusElement.innerHTML = `
+            <div class="status-indicator ${statusClasses[status]}">
+                <div class="status-dot"></div>
+                <span>${statusMessages[status]}</span>
+            </div>
+        `;
+
+        // Show status temporarily
+        this.connectionStatusElement.classList.remove('hidden');
+        
+        if (status === 'online') {
+            setTimeout(() => {
+                this.connectionStatusElement.classList.add('hidden');
+            }, 2000);
+        }
+    }
+
+    // Data Freshness Management  
+    updateDataFreshness(elementId, timestamp) {
+        this.dataFreshness.set(elementId, timestamp);
+        
+        const element = document.getElementById(elementId);
+        if (!element) return;
+
+        const now = Date.now();
+        const age = now - timestamp;
+        const ageMinutes = Math.floor(age / (1000 * 60));
+
+        // Find or create timestamp element
+        let timestampElement = element.querySelector('.data-timestamp');
+        if (!timestampElement) {
+            timestampElement = document.createElement('div');
+            timestampElement.className = 'data-timestamp';
+            element.appendChild(timestampElement);
+        }
+
+        // Determine freshness status
+        let freshnessClass = 'data-fresh';
+        if (ageMinutes > 5) freshnessClass = 'data-stale';
+        if (ageMinutes > 15) freshnessClass = 'data-error';
+
+        timestampElement.className = `data-timestamp ${freshnessClass}`;
+        timestampElement.innerHTML = `
+            <div class="freshness-dot"></div>
+            <span>Updated ${ageMinutes === 0 ? 'now' : `${ageMinutes}m ago`}</span>
+        `;
+    }
+
+    // Market Session Status
+    updateSessionStatus() {
+        const now = new Date();
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+        const dayOfWeek = now.getDay();
+
+        // Weekend check
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+            return this.setSessionStatus('closed', 'Weekend');
+        }
+
+        // Market hours (9:30 AM - 4:00 PM EST)
+        const marketOpen = hours > 9 || (hours === 9 && minutes >= 30);
+        const marketClose = hours < 16;
+        const isMarketHours = marketOpen && marketClose;
+
+        // Pre-market (4:00 AM - 9:30 AM)
+        const isPreMarket = hours >= 4 && (hours < 9 || (hours === 9 && minutes < 30));
+
+        // After-hours (4:00 PM - 8:00 PM)
+        const isAfterHours = hours >= 16 && hours < 20;
+
+        if (isMarketHours) {
+            this.setSessionStatus('open', 'Market Open');
+        } else if (isPreMarket) {
+            this.setSessionStatus('pre-market', 'Pre-Market');
+        } else if (isAfterHours) {
+            this.setSessionStatus('after-hours', 'After Hours');
+        } else {
+            this.setSessionStatus('closed', 'Market Closed');
+        }
+    }
+
+    setSessionStatus(status, text) {
+        const sessionElements = document.querySelectorAll('.session-indicator');
+        sessionElements.forEach(element => {
+            element.className = `session-indicator session-${status}`;
+            element.textContent = text;
+        });
+    }
+
+    // DOM Update Utilities (prevent flicker)
+    updateElementContent(element, newContent, useFragment = true) {
+        if (!element || this.updateGuards.has(element.id)) return;
+        
+        if (useFragment && typeof newContent === 'string') {
+            // Use document fragment to minimize reflow
+            const template = document.createElement('template');
+            template.innerHTML = newContent.trim();
+            
+            // Only update if content actually changed
+            if (element.innerHTML.trim() !== newContent.trim()) {
+                this.updateGuards.add(element.id);
+                element.replaceChildren(...template.content.childNodes);
+                setTimeout(() => this.updateGuards.delete(element.id), 100);
+            }
+        } else {
+            // Direct update for simple content
+            if (element.textContent !== newContent) {
+                element.textContent = newContent;
+            }
+        }
+    }
+
+    safeUpdateHTML(elementId, newHTML) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            this.updateElementContent(element, newHTML);
+        }
     }
 
     async init() {
@@ -52,6 +277,14 @@ class EnhancedMarketIntelligence {
 
     async loadMarketData() {
         try {
+            // Show connection status
+            this.showConnectionStatus('loading', 'Fetching market data...');
+            
+            // Show loading states for key components
+            this.showLoadingState('enhancedMarketOverview', 'card');
+            this.showLoadingState('fearGreedGauge', 'chart');
+            this.showLoadingState('marketBreadthChart', 'chart');
+            
             this.showLoading(true);
             
             // Fetch enhanced market data with watchlist
@@ -62,32 +295,128 @@ class EnhancedMarketIntelligence {
             });
             
             if (!response.ok) {
+                this.showConnectionStatus('error', `API Error: ${response.status}`);
                 throw new Error(`API request failed: ${response.status}`);
             }
             
             const data = await response.json();
+            
+            // Show successful connection
+            this.showConnectionStatus('online', 'Data refreshed');
+            
+            // Hide loading states
+            this.hideLoadingState('enhancedMarketOverview');
+            this.hideLoadingState('fearGreedGauge');
+            this.hideLoadingState('marketBreadthChart');
+            
             // Cache full payload for merging with lightweight realtime updates
             this.lastData = data;
             
-            // Update all components
+            // Update all components with data freshness tracking
+            const updateTimestamp = Date.now();
             this.updateHeader(data);
             this.updateMarketOverview(data);
+            this.updateDataFreshness('enhancedMarketOverview', updateTimestamp);
             this.updateMarketAnalytics(data); // <-- Connect analytics here
             this.updateRegimeDashboard(data);
             this.updateFearGreedIndex(data);
+            this.updateDataFreshness('fearGreedGauge', updateTimestamp);
             this.updateSentimentAnalysis(data);
             this.updateCorrelationMatrix(data);
             this.updateMarketBreadth(data);
+            this.updateDataFreshness('marketBreadthChart', updateTimestamp);
             // Extended analytics folded into Market Analytics section instead of separate card
             this.updateSectorRotation(data);
             this.updateVolatilityEvents(data);
             
-            this.showLoading(false);
+            // Legacy methods for compatibility
+            this.updateWatchlistAnalysis(data.watchlist_analysis || []);
+            this.updateMarketTrends(data.market_trends || {});
+            
+            // Load India-specific news
+            this.loadIndianMarketNews();
+            
+            // Update session status
+            this.updateSessionStatus();
             
         } catch (error) {
             console.error('Error loading market data:', error);
+            this.showConnectionStatus('error', 'Failed to load data');
+            
+            // Hide loading states on error
+            this.hideLoadingState('enhancedMarketOverview');
+            this.hideLoadingState('fearGreedGauge');
+            this.hideLoadingState('marketBreadthChart');
+            
             this.showError('Failed to load market data');
+        } finally {
             this.showLoading(false);
+        }
+    }
+
+    async loadIndianMarketNews() {
+        try {
+            const response = await fetch(`${this.baseApi}/market/indian-news`);
+            if (response.ok) {
+                const indianNews = await response.json();
+                this.updateIndianNewsSection(indianNews);
+            } else {
+                console.warn('Indian news endpoint not available, using fallback');
+                this.showIndianNewsFallback();
+            }
+        } catch (error) {
+            console.error('Error loading Indian market news:', error);
+            this.showIndianNewsFallback();
+        }
+    }
+
+    updateIndianNewsSection(newsData) {
+        const newsContainer = document.querySelector('.indian-news-section') || 
+                            document.getElementById('indian-market-news');
+        
+        if (!newsContainer) {
+            console.warn('Indian news container not found');
+            return;
+        }
+
+        const newsHtml = newsData.articles ? newsData.articles.map(article => `
+            <div class="news-item indian-news">
+                <div class="news-header">
+                    <h6>${article.title}</h6>
+                    <span class="news-time">${article.published || 'Recent'}</span>
+                </div>
+                <p class="news-summary">${article.summary || article.description || 'Indian market update'}</p>
+                <div class="news-meta">
+                    <span class="news-source">${article.source || 'Indian Markets'}</span>
+                    ${article.sentiment ? `<span class="sentiment-${article.sentiment.toLowerCase()}">${article.sentiment}</span>` : ''}
+                </div>
+            </div>
+        `).join('') : '<div class="empty-state"><p>No Indian market news available</p></div>';
+
+        this.updateElementContent(newsContainer, `
+            <div class="indian-market-news">
+                <h4><i class="fas fa-flag-india"></i> India Market Focus</h4>
+                <div class="news-list">
+                    ${newsHtml}
+                </div>
+            </div>
+        `);
+    }
+
+    showIndianNewsFallback() {
+        const newsContainer = document.querySelector('.indian-news-section') || 
+                            document.getElementById('indian-market-news');
+        
+        if (newsContainer) {
+            this.updateElementContent(newsContainer, `
+                <div class="indian-market-news">
+                    <h4><i class="fas fa-flag-india"></i> India Market Focus</h4>
+                    <div class="fallback-message">
+                        <p><i class="fas fa-info-circle"></i> Indian market news will be updated shortly</p>
+                        <small>Check back in a few minutes for the latest updates</small>
+                    </div>
+                </div>
+            `);
         }
     }
 
@@ -239,6 +568,9 @@ class EnhancedMarketIntelligence {
             `;
             // India Focus panel (data-driven)
             const ifocus = data.india_focus || {};
+            console.log('India Focus Raw Data:', ifocus);
+            console.log('India Focus Indices:', ifocus.indices);
+            
             const indiaKeys = [
               ['Nifty 50', 'nifty50'],
               ['Bank Nifty', 'banknifty'],
@@ -250,28 +582,42 @@ class EnhancedMarketIntelligence {
               ['Nifty Metal', 'niftymetal'],
               ['Nifty Infra', 'niftyinfra'],
               ['Nifty Energy', 'niftyenergy'],
-              ['India VIX', 'indiavix'],
-              ['USD/INR', 'usdinr']
+              ['India VIX', 'indiavix']
             ];
+            
             const isFiniteNum = (v) => typeof v === 'number' && isFinite(v);
-            const indiaCards = indiaKeys.map(([label, key]) => {
-              const obj = ifocus[key];
+            const indiaIndices = ifocus.indices || {};
+            console.log('Processed India indices:', indiaIndices);
+            
+            let indiaCards = indiaKeys.map(([label, key]) => {
+              const obj = indiaIndices[key];  // FIX: Access from ifocus.indices
+              console.log(`Processing ${label} (${key}):`, obj);
               if (!obj) return '';
               if (!isFiniteNum(obj.price) || !isFiniteNum(obj.change_percent)) return '';
               return this.createIndexCard(label, obj, 'fas fa-chart-area');
             }).filter(Boolean).join('');
+            
+            // Add currency/commodities from india_focus.currency_commodities
+            const currencyComm = ifocus.currency_commodities || {};
+            if (currencyComm.usdinr && isFiniteNum(currencyComm.usdinr.price)) {
+                const usdinrCard = this.createIndexCard('USD/INR', currencyComm.usdinr, 'fas fa-exchange-alt');
+                indiaCards += usdinrCard;
+            }
+            
+            console.log(`Generated ${indiaCards ? 'cards' : 'no cards'} for India Focus`);
+            
             html += `
               <div class="market-summary-card">
                 <h4><i class="fas fa-flag"></i> India Focus</h4>
                 <div class="indices-grid">
-                  ${indiaCards || '<div class="empty-state"><p>No valid India data</p></div>'}
+                  ${indiaCards || '<div class="empty-state"><p>No valid India data available</p></div>'}
                 </div>
               </div>
             `;
-            container.innerHTML = html;
+            this.updateElementContent(container, html);
         } catch (error) {
             console.error('Error updating market overview:', error);
-            container.innerHTML = '<div class="error-message">Error loading market overview</div>';
+            this.updateElementContent(container, '<div class="error-message">Error loading market overview</div>');
         }
     }
 
@@ -321,7 +667,7 @@ class EnhancedMarketIntelligence {
             const interpretation = data.regime.interpretation || 'Analysis pending...';
             
             // Update factors table
-            container.innerHTML = '';
+            const fragment = document.createDocumentFragment();
             factors.forEach(factor => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
@@ -345,8 +691,13 @@ class EnhancedMarketIntelligence {
                         </div>
                     </td>
                 `;
-                container.appendChild(row);
+                fragment.appendChild(row);
             });
+            
+            // Only replace if content changed
+            if (container.children.length !== factors.length) {
+                container.replaceChildren(fragment);
+            }
             
             // Update interpretation
             const interpretationEl = document.querySelector('.regime-interpretation');
@@ -918,6 +1269,45 @@ class EnhancedMarketIntelligence {
         list.innerHTML = events.length ? events.map(e=>`<li>${e.index}: ${e.change_percent.toFixed(2)}%</li>`).join('') : '<li>No spikes</li>';
     }
 
+    // Legacy compatibility methods
+    updateWatchlistAnalysis(watchlistData) {
+        console.log('📊 Updating watchlist analysis:', watchlistData);
+        // This method provides backward compatibility
+        // The actual watchlist analytics are now handled in updateMarketAnalytics
+        if (Array.isArray(watchlistData) && watchlistData.length > 0) {
+            // Process watchlist data if needed for legacy components
+            const container = document.getElementById('watchlistAnalysisContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="watchlist-summary">
+                        <p>Watchlist contains ${watchlistData.length} stocks</p>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    updateMarketTrends(trendsData) {
+        console.log('📈 Updating market trends:', trendsData);
+        // Legacy compatibility method for market trends
+        const container = document.getElementById('marketTrendsContainer');
+        if (container && trendsData && Object.keys(trendsData).length > 0) {
+            const trendsHtml = Object.entries(trendsData).map(([key, value]) => 
+                `<div class="trend-item">
+                    <span class="trend-label">${key}:</span>
+                    <span class="trend-value">${value}</span>
+                </div>`
+            ).join('');
+            
+            container.innerHTML = `
+                <div class="market-trends">
+                    <h4>Market Trends</h4>
+                    ${trendsHtml}
+                </div>
+            `;
+        }
+    }
+
     setupEventListeners() {
         // Refresh button
         const refreshBtn = document.querySelector('.market-refresh-btn');
@@ -957,10 +1347,27 @@ class EnhancedMarketIntelligence {
             clearInterval(this.updateInterval);
         }
         
-        // Refresh every 2 minutes
+        // Refresh every 5 seconds for real-time data
         this.updateInterval = setInterval(() => {
+            this.refreshData();
+        }, 5000);
+        
+        console.log('🔄 Market Intelligence: Auto-refresh enabled (5s interval)');
+    }
+    
+    // Method to refresh data (called by main app)
+    refreshData() {
+        if (this.isInitialized) {
             this.loadMarketData();
-        }, 120000);
+        }
+    }
+    
+    // Stop auto-refresh
+    stopAutoRefresh() {
+        if (this.updateInterval) {
+            clearInterval(this.updateInterval);
+            this.updateInterval = null;
+        }
     }
 
     showLoading(show) {
