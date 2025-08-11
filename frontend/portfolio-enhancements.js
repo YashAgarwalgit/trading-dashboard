@@ -72,6 +72,146 @@ function enhanceTradingPlatform() {
             diversificationScore
         };
     };
+    
+    // FEATURE 2: Refresh Portfolio Analytics (called after buy/sell transactions)
+    platform.refreshPortfolioAnalytics = async function() {
+        if (!this.activePortfolio) return;
+        
+        console.log('🔄 Refreshing portfolio analytics after transaction...');
+        
+        try {
+            // Get fresh portfolio data
+            const positionsData = await this.getPortfolioPositions(this.activePortfolio.id);
+            if (positionsData && positionsData.positions) {
+                // Update analytics display
+                this.updateAnalyticsDisplay(positionsData.positions);
+                
+                // Fetch and display transaction history
+                await this.updateTransactionHistory();
+                
+                console.log('✅ Portfolio analytics refreshed successfully');
+            }
+        } catch (error) {
+            console.error('❌ Error refreshing portfolio analytics:', error);
+        }
+    };
+    
+    // FEATURE 3: Update Analytics Display
+    platform.updateAnalyticsDisplay = function(positions) {
+        const analytics = this.calculatePortfolioAnalytics(positions);
+        
+        // Update analytics values in the DOM
+        const elements = {
+            totalReturn: document.getElementById('portfolioTotalReturn'),
+            bestStock: document.getElementById('portfolioBestStock'),
+            worstStock: document.getElementById('portfolioWorstStock'),
+            diversification: document.getElementById('portfolioDiversification')
+        };
+        
+        if (elements.totalReturn) {
+            elements.totalReturn.textContent = `${analytics.totalPnLPercent.toFixed(2)}%`;
+            elements.totalReturn.className = `analytics-value ${analytics.totalPnLPercent >= 0 ? 'positive' : 'negative'}`;
+        }
+        
+        if (elements.bestStock) {
+            if (analytics.bestPerformer.symbol) {
+                elements.bestStock.textContent = `${analytics.bestPerformer.symbol} (+${analytics.bestPerformer.pnlPercent.toFixed(1)}%)`;
+                elements.bestStock.className = 'analytics-value positive';
+            } else {
+                elements.bestStock.textContent = 'No positions yet';
+                elements.bestStock.className = 'analytics-value';
+            }
+        }
+        
+        if (elements.worstStock) {
+            if (analytics.worstPerformer.symbol) {
+                elements.worstStock.textContent = `${analytics.worstPerformer.symbol} (${analytics.worstPerformer.pnlPercent.toFixed(1)}%)`;
+                elements.worstStock.className = 'analytics-value negative';
+            } else {
+                elements.worstStock.textContent = 'No positions yet';
+                elements.worstStock.className = 'analytics-value';
+            }
+        }
+        
+        if (elements.diversification) {
+            elements.diversification.textContent = `${analytics.diversificationScore}/10`;
+        }
+        
+        // Show analytics section
+        const analyticsSection = document.getElementById('portfolioAnalytics');
+        if (analyticsSection) {
+            analyticsSection.style.display = 'block';
+        }
+    };
+    
+    // FEATURE 4: Transaction History
+    platform.updateTransactionHistory = async function() {
+        try {
+            const response = await fetch(`${this.stockAPI}/portfolios/${this.activePortfolio.id}/transactions`);
+            const data = await response.json();
+            
+            if (response.ok && data.transactions && data.transactions.length > 0) {
+                this.displayTransactionHistory(data.transactions);
+            }
+        } catch (error) {
+            console.error('Error fetching transaction history:', error);
+        }
+    };
+    
+    // FEATURE 5: Display Transaction History
+    platform.displayTransactionHistory = function(transactions) {
+        let historyContainer = document.getElementById('transactionHistory');
+        
+        if (!historyContainer) {
+            // Create transaction history container
+            const portfolioTab = document.getElementById('portfolio-tab');
+            if (portfolioTab) {
+                const historyHTML = `
+                    <div class="card" id="transactionHistoryCard">
+                        <div class="card__header">
+                            <h3><i class="fas fa-history"></i> Transaction History</h3>
+                            <span class="badge">${transactions.length} transactions</span>
+                        </div>
+                        <div class="card__body">
+                            <div id="transactionHistory" class="transaction-list"></div>
+                        </div>
+                    </div>
+                `;
+                portfolioTab.insertAdjacentHTML('beforeend', historyHTML);
+                historyContainer = document.getElementById('transactionHistory');
+            }
+        }
+        
+        if (historyContainer) {
+            // Transactions are already sorted by timestamp DESC from backend
+            const historyHTML = transactions.slice(0, 15).map(transaction => `
+                <div class="transaction-item ${transaction.transaction_type}">
+                    <div class="transaction-main">
+                        <div class="transaction-symbol">
+                            <strong>${transaction.symbol}</strong>
+                            <span class="transaction-type ${transaction.transaction_type}">${transaction.transaction_type.toUpperCase()}</span>
+                        </div>
+                        <div class="transaction-details">
+                            <span class="quantity">${transaction.quantity} shares</span>
+                            <span class="price">@ ₹${parseFloat(transaction.price).toFixed(2)}</span>
+                        </div>
+                    </div>
+                    <div class="transaction-meta">
+                        <div class="transaction-value">₹${parseFloat(transaction.total_value).toFixed(2)}</div>
+                        <div class="transaction-time">${new Date(transaction.timestamp).toLocaleDateString()}</div>
+                    </div>
+                </div>
+            `).join('');
+            
+            historyContainer.innerHTML = historyHTML;
+            
+            // Update the badge count
+            const badge = document.querySelector('#transactionHistoryCard .badge');
+            if (badge) {
+                badge.textContent = `${transactions.length} transactions`;
+            }
+        }
+    };
 
     // FEATURE 2: Diversification Score Calculator
     platform.calculateDiversificationScore = function(positions) {
@@ -568,11 +708,12 @@ window.refreshPositions = function() {
 };
 
     // FEATURE 11: Delete Portfolio
-    platform.deletePortfolio = async function(portfolioId) {
-        if (!portfolioId) {
-            this.showError('No portfolio ID provided');
-            return;
-        }
+    if (window.tradingPlatform) {
+        window.tradingPlatform.deletePortfolio = async function(portfolioId) {
+            if (!portfolioId) {
+                this.showError('No portfolio ID provided');
+                return;
+            }
 
         const portfolio = this.portfolios.get(portfolioId);
         if (!portfolio) {
@@ -710,3 +851,4 @@ window.refreshPositions = function() {
             }
         });
     };
+    } // Close the if (window.tradingPlatform) check
