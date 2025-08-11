@@ -6,9 +6,38 @@
     <title>🚀 Live Paper Trading Dashboard - Quantitative Finance</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Simple Chart.js tooltip configuration to avoid errors
+        Chart.defaults.plugins.tooltip.enabled = true;
+        Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+        Chart.defaults.plugins.tooltip.titleColor = '#333';
+        Chart.defaults.plugins.tooltip.bodyColor = '#666';
+        Chart.defaults.plugins.tooltip.borderColor = '#ccc';
+        Chart.defaults.plugins.tooltip.borderWidth = 1;
+
+        // Ensure tooltips work properly
+        Chart.defaults.animation.duration = 300;
+
+        // Register a plugin to ensure tooltip z-index
+        Chart.register({
+            id: 'tooltipZIndex',
+            afterRender: function(chart) {
+                if (chart.tooltip && chart.tooltip._active && chart.tooltip._active.length) {
+                    const canvas = chart.canvas;
+                    canvas.style.zIndex = '1000';
+                }
+            }
+        });
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
 </head>
 <body>
+    <!-- Corner Auto-refresh Indicator -->
+    <div id="autoRefreshIndicator" class="auto-refresh-corner hidden">
+        <i class="fas fa-sync fa-spin"></i>
+        <span>Syncing...</span>
+    </div>
+
     <!-- Enhanced Header Structure -->
     <header class="main-header">
         <div class="header-content">
@@ -26,10 +55,16 @@
                         <i class="fas fa-bell"></i>
                         <span class="notification-badge" id="alertsCount" style="display: none;">0</span>
                     </button>
-                    <!-- Refresh All Data -->
-                    <button id="refreshAllData" class="header-action-btn" title="Refresh All Data">
-                        <i class="fas fa-sync"></i>
-                    </button>
+                    <!-- Refresh All Data with Auto-refresh status -->
+                    <div class="auto-refresh-container">
+                        <button id="refreshAllData" class="header-action-btn" title="Manual Refresh">
+                            <i class="fas fa-sync"></i>
+                        </button>
+                        <div class="auto-refresh-status" id="autoRefreshStatus">
+                            <i class="fas fa-clock"></i>
+                            <span>Auto: 3s</span>
+                        </div>
+                    </div>
                     <!-- Connection Status -->
                     <div class="connection-status-detailed">
                         <span class="status-indicator" id="connectionStatus">
@@ -109,11 +144,11 @@
                 
                 <!-- Connection Status -->
                 <div class="connection-status">
-                    <div class="metric-card">
+                    <div class="metric-card data-feed-metric" data-tooltip="🔴 Real-time market data connection&#10;📊 Live price updates&#10;⚡ Low latency feed&#10;🔄 Auto-reconnection enabled">
                         <div class="metric-label">Data Feed</div>
                         <div class="metric-value" id="connectionStatusText">Disconnected</div>
                     </div>
-                    <div class="metric-card">
+                    <div class="metric-card live-stocks-metric" data-tooltip="📈 Active stock monitoring&#10;💹 Real-time price tracking&#10;🎯 Watchlist management&#10;📱 Portfolio updates">
                         <div class="metric-label">Live Stocks</div>
                         <div class="metric-value" id="liveStockCount">0</div>
                     </div>
@@ -462,8 +497,8 @@
                                         <div class="form-group">
                                             <label for="orderPrice">Price (Reference)</label>
                                             <input type="number" id="orderPrice" name="price" class="form-control" 
-                                                   placeholder="Current market price" step="0.01" readonly>
-                                            <small class="form-help">Auto-filled from live data</small>
+                                                   placeholder="Current market price" step="0.01">
+                                            <small class="form-help">Auto-filled from live data when symbol is entered</small>
                                         </div>
                                     </div>
                                     <div class="form-actions">
@@ -566,6 +601,7 @@
                                         <button class="news-tab active" data-tab="headlines">Headlines</button>
                                         <button class="news-tab" data-tab="watchlist">Watchlist News</button>
                                         <button class="news-tab" data-tab="trending">Trending Topics</button>
+                                        <button class="news-tab" data-tab="india-focus">India Focus</button>
                                         <button class="news-tab" data-tab="analysis">Sentiment Analysis</button>
                                     </div>
 
@@ -593,6 +629,15 @@
                                                 <div class="news-loading">
                                                     <div class="spinner"></div>
                                                     <p>Analyzing trending topics...</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="news-panel" id="india-focus-panel">
+                                            <div class="india-market-section" id="indian-market-news">
+                                                <div class="news-loading">
+                                                    <div class="spinner"></div>
+                                                    <p>Loading Indian market news...</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -781,38 +826,67 @@
         </main>
     </div>
 
+    <!-- Modals -->
     <!-- Create Portfolio Modal -->
     <div id="createPortfolioModal" class="modal hidden">
         <div class="modal-content">
             <div class="modal-header">
-                <h3><i class="fas fa-plus"></i> Create New Portfolio</h3>
-                <button class="modal-close">&times;</button>
+                <h3><i class="fas fa-plus"></i> Create Portfolio</h3>
+                <button class="modal-close" id="closeCreateModal">&times;</button>
+            </div>
+            <form id="createPortfolioForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="portfolioName">Portfolio Name *</label>
+                        <input type="text" id="portfolioName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="portfolioCapital">Starting Capital *</label>
+                        <input type="number" id="portfolioCapital" class="form-control" min="1000" step="100" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="portfolioDescription">Description</label>
+                        <textarea id="portfolioDescription" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn--outline" id="cancelCreateBtn">Cancel</button>
+                    <button type="submit" class="btn btn--primary">Create Portfolio</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Portfolio Modal -->
+    <div id="deletePortfolioModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Delete Portfolio</h3>
+                <button class="modal-close" id="closeDeleteModal">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="createPortfolioForm">
-                    <div class="form-group">
-                        <label for="portfolioName">Portfolio Name</label>
-                        <input type="text" id="portfolioName" name="portfolioName" class="form-control" 
-                               placeholder="Enter portfolio name" required>
+                <div class="warning-message">
+                    <i class="fas fa-exclamation-triangle" style="color: #dc2626; font-size: 48px; margin-bottom: 16px;"></i>
+                    <h4>Confirm Portfolio Deletion</h4>
+                    <p id="deletePortfolioName">Portfolio: </p>
+                    <div class="warning-box">
+                        <p><strong>This will permanently delete:</strong></p>
+                        <ul>
+                            <li>All positions and holdings</li>
+                            <li>Transaction history</li>
+                            <li>Analytics data</li>
+                        </ul>
+                        <p style="color: #dc2626; font-weight: bold;">This cannot be undone!</p>
                     </div>
-                    <div class="form-group">
-                        <label for="portfolioCapital">Initial Capital (₹)</label>
-                        <input type="number" id="portfolioCapital" name="portfolioCapital" class="form-control" 
-                               placeholder="100000" min="1000" step="0.01" required>
-                        <small class="form-help">Minimum ₹1,000 required to start trading</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="portfolioDescription">Description (Optional)</label>
-                        <textarea id="portfolioDescription" name="portfolioDescription" class="form-control" 
-                                  placeholder="Portfolio description..." rows="3"></textarea>
-                    </div>
-                </form>
+                </div>
+                <div class="form-group">
+                    <label for="deleteConfirmation">Type "DELETE" to confirm:</label>
+                    <input type="text" id="deleteConfirmation" class="form-control" placeholder="Type DELETE">
+                </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn--outline modal-close">Cancel</button>
-                <button type="submit" form="createPortfolioForm" class="btn btn--primary">
-                    <i class="fas fa-plus"></i> Create Portfolio
-                </button>
+                <button type="button" class="btn btn--outline" id="cancelDeleteBtn">Cancel</button>
+                <button type="button" class="btn btn--danger" id="confirmDeleteBtn" disabled>Delete Portfolio</button>
             </div>
         </div>
     </div>
@@ -838,13 +912,12 @@
                                min="1" placeholder="100" required>
                     </div>
                     <div class="form-group">
-                        <label for="buyPrice">Price per Share (USD)</label>
+                        <label for="buyPrice">Price per Share</label>
                         <input type="number" id="buyPrice" class="form-control" 
-                               step="0.01" placeholder="Current market price" required>
-                        <small class="form-help">Use current market price in USD. Total cost will be shown in INR</small>
+                               step="0.01" placeholder="Market price" required>
                     </div>
                     <div class="form-group">
-                        <label>Total Cost (₹)</label>
+                        <label>Total Cost</label>
                         <div class="form-control-static" id="buyTotalCost">₹0.00</div>
                     </div>
                 </form>
@@ -873,17 +946,15 @@
                     </div>
                     <div class="form-group">
                         <label for="sellQuantity">Quantity <span class="max-quantity"></span></label>
-                        <input type="number" id="sellQuantity" class="form-control" 
-                               min="1" required>
+                        <input type="number" id="sellQuantity" class="form-control" min="1" required>
                     </div>
                     <div class="form-group">
-                        <label for="sellPrice">Price per Share (USD)</label>
+                        <label for="sellPrice">Price per Share</label>
                         <input type="number" id="sellPrice" class="form-control" 
-                               step="0.01" placeholder="Current market price" required>
-                        <small class="form-help">Use current market price in USD. Total proceeds will be shown in INR</small>
+                               step="0.01" placeholder="Market price" required>
                     </div>
                     <div class="form-group">
-                        <label>Total Proceeds (₹)</label>
+                        <label>Total Proceeds</label>
                         <div class="form-control-static" id="sellTotalProceeds">₹0.00</div>
                     </div>
                 </form>
@@ -910,6 +981,22 @@
             <span class="status-message"></span>
             <button class="status-close">&times;</button>
         </div>
+    </div>
+
+    <!-- Contact Links - Bottom Left -->
+    <div class="contact-links">
+        <a href="mailto:agayash23@gmail.com" class="contact-link email" data-tooltip="Email Me" title="Send Email">
+            <i class="fas fa-envelope"></i>
+        </a>
+        <a href="https://wa.me/917047415636" target="_blank" class="contact-link whatsapp" data-tooltip="WhatsApp" title="WhatsApp Chat">
+            <i class="fab fa-whatsapp"></i>
+        </a>
+        <a href="https://github.com/YashAgarwalgit" target="_blank" class="contact-link github" data-tooltip="GitHub" title="View GitHub">
+            <i class="fab fa-github"></i>
+        </a>
+        <a href="https://www.linkedin.com/in/yash-agarwal-73603924b" target="_blank" class="contact-link linkedin" data-tooltip="LinkedIn" title="Connect on LinkedIn">
+            <i class="fab fa-linkedin"></i>
+        </a>
     </div>
 
     <!-- Scripts -->
