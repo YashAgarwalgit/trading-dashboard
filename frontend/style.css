@@ -1031,6 +1031,22 @@ select option {
     gap: 8px;
 }
 
+.developer-credit {
+    margin-top: 2px;
+    margin-bottom: 4px;
+}
+
+.developer-credit span {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.85rem;
+    font-weight: 400;
+}
+
+.developer-credit strong {
+    color: #60a5fa;
+    font-weight: 600;
+}
+
 .market-session-status {
     margin-top: 4px;
 }
