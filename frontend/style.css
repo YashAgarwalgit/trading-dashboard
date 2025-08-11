@@ -391,6 +391,8 @@
   /* ===== SEMANTIC COLORS (LIGHT MODE) ===== */
   --color-background: var(--color-cream-50);
   --color-surface: var(--color-cream-100);
+  --color-surface-overlay: rgba(255, 255, 255, 0.95);
+  --color-surface-alt: rgba(var(--color-brown-600-rgb), 0.04);
   --color-text: var(--color-slate-900);
   --color-text-secondary: var(--color-slate-500);
   --color-primary: var(--color-teal-500);
@@ -522,6 +524,8 @@
     /* ===== DARK MODE SEMANTIC COLORS ===== */
     --color-background: var(--color-charcoal-700);
     --color-surface: var(--color-charcoal-800);
+    --color-surface-overlay: rgba(38, 40, 40, 0.95);
+    --color-surface-alt: rgba(var(--color-gray-400-rgb), 0.08);
     --color-text: var(--color-gray-200);
     --color-text-secondary: rgba(var(--color-gray-300-rgb), 0.7);
     --color-primary: var(--color-teal-300);
@@ -1065,6 +1069,36 @@ select option {
     transform: translateY(-1px);
 }
 
+/* Auto-refresh container styles */
+.auto-refresh-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.auto-refresh-status {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.7);
+    background: rgba(0,255,0,0.1);
+    padding: 2px 6px;
+    border-radius: 12px;
+    border: 1px solid rgba(0,255,0,0.3);
+}
+
+.auto-refresh-status i {
+    font-size: 8px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
 .notification-badge {
     position: absolute;
     top: -4px;
@@ -1122,6 +1156,63 @@ select option {
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0,0,0,0.2);
     background: rgba(255,255,255,0.15);
+}
+
+/* Data Feed and Live Stocks Hover Tooltips - Bottom Right */
+.data-feed-metric,
+.live-stocks-metric {
+    position: fixed !important;
+    z-index: 999;
+    min-width: 120px;
+}
+
+.data-feed-metric {
+    bottom: 80px;
+    right: 20px;
+}
+
+.live-stocks-metric {
+    bottom: 20px;
+    right: 20px;
+}
+
+.data-feed-metric::after,
+.live-stocks-metric::after {
+    content: attr(data-tooltip);
+    position: fixed;
+    background: rgba(0, 0, 0, 0.92);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    z-index: 1000;
+    max-width: 250px;
+    min-width: 200px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    white-space: pre-line;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.data-feed-metric::after {
+    right: 100px;
+    bottom: 20px;
+}
+
+.live-stocks-metric::after {
+    right: 100px;
+    bottom: 20px;
+}
+
+.data-feed-metric:hover::after,
+.live-stocks-metric:hover::after {
+    opacity: 1;
+    visibility: visible;
 }
 
 .metric-header {
@@ -4225,11 +4316,20 @@ select option {
 .tech-card-header h4 { display: flex; align-items: center; gap: 8px; font-size: 1rem; margin: 0; }
 .tech-card-actions { display: flex; gap: 6px; }
 .period-tag { background: var(--color-secondary); padding: 2px 8px; border-radius: var(--radius-sm); font-size: var(--font-size-xs); font-weight: 500; }
-.chart-wrapper { position: relative; width: 100%; flex: 1; min-height: 180px; }
+.chart-wrapper { 
+    position: relative; 
+    width: 100%; 
+    flex: 1; 
+    min-height: 180px; 
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+}
 .tech-chart-card canvas {
     width: 100% !important;
     height: 180px !important;
     margin-bottom: 12px;
+    background: var(--color-surface) !important;
+    border-radius: 8px;
 }
 .tech-indicators-list {
     margin-top: 8px;
@@ -4252,11 +4352,273 @@ select option {
 .spinner { width: 28px; height: 28px; border-radius: 50%; border: 3px solid rgba(var(--color-teal-500-rgb),0.25); border-top-color: var(--color-primary); animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .muted { opacity: 0.6; }
-/* Tab button active state for technical indicators */
-.tab-btn[data-tab="technical-indicators"].active {
-    background: #1FB8CD;
-    color: #fff;
-    border-radius: 6px 6px 0 0;
+/* Enhanced Technical Indicators Chart Styling for Better System Compatibility */
+.technical-analysis-card .chart-container {
+    height: 320px !important; /* Increased height for better visibility */
+    background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-alt) 100%);
+    border: 2px solid rgba(var(--color-teal-500-rgb), 0.12);
+    border-radius: var(--radius-lg);
+    padding: var(--space-16);
+    box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.04),
+        0 4px 8px rgba(var(--color-teal-500-rgb), 0.08);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    position: relative;
+}
+
+.technical-analysis-card .chart-container:hover {
+    border-color: rgba(var(--color-teal-500-rgb), 0.25);
+    box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.04),
+        0 8px 20px rgba(var(--color-teal-500-rgb), 0.15);
+    transform: translateY(-2px);
+}
+
+.technical-analysis-card .chart-container canvas {
+    background: var(--color-surface) !important; /* System-compatible background instead of transparent */
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    filter: contrast(1.05) saturate(1.1);
+}
+
+/* Chart.js canvas specific override for system compatibility */
+.chart-container canvas[id*="chart"] {
+    background: var(--color-surface) !important;
+    color: var(--color-text-primary) !important;
+}
+
+/* Enhanced chart wrapper for technical indicators */
+.chart-wrapper.enhanced {
+    position: relative;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-12);
+    box-shadow: var(--shadow-sm);
+}
+
+/* System-compatible chart color overrides */
+.chart-container {
+    /* Override any white backgrounds in charts */
+    --chart-bg-primary: var(--color-surface);
+    --chart-bg-secondary: var(--color-surface-alt);
+    --chart-text-primary: var(--color-text-primary);
+    --chart-text-secondary: var(--color-text-secondary);
+    --chart-border: var(--color-border);
+    --chart-grid: rgba(var(--color-text-primary-rgb), 0.1);
+}
+
+/* Chart.js specific system integration */
+.chart-container canvas {
+    background: var(--chart-bg-primary) !important;
+}
+
+/* Chart text and labels system compatibility */
+.chartjs-render-monitor {
+    background: var(--color-surface) !important;
+}
+
+/* Chart tooltip system compatibility */
+.chartjs-tooltip {
+    background: var(--color-surface-overlay) !important;
+    color: var(--color-text-primary) !important;
+    border: 1px solid var(--color-border) !important;
+    box-shadow: var(--shadow-lg) !important;
+}
+
+/* Chart legend system compatibility */
+.chart-legend {
+    background: var(--color-surface-alt) !important;
+    color: var(--color-text-primary) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: 12px;
+    padding: 16px;
+    backdrop-filter: blur(10px);
+}
+
+/* Chart axes and grid lines system compatibility */
+.chart-container svg text {
+    fill: var(--color-text-primary) !important;
+}
+
+.chart-container .grid-line {
+    stroke: var(--color-border) !important;
+}
+
+/* Ensure all chart backgrounds are system-compatible */
+[id*="chart"] {
+    background: var(--color-surface) !important;
+}
+
+/* Technical indicators specific chart styling */
+.technical-indicators .chart-container {
+    background: var(--color-surface) !important;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.technical-indicators canvas {
+    background: var(--color-surface) !important;
+}
+
+/* Universal canvas background override for all charts */
+canvas {
+    background: var(--color-surface) !important;
+}
+
+/* Specific overrides for different chart types */
+canvas[id*="Chart"],
+canvas[id*="chart"],
+canvas[class*="chart"] {
+    background: var(--color-surface) !important;
+    border-radius: 6px;
+}
+
+/* Ensure Chart.js dynamically created canvases also use system colors */
+canvas[data-chartjs-chart],
+.chartjs-canvas {
+    background: var(--color-surface) !important;
+    border-radius: 6px;
+}
+
+/* Main chart area background override */
+div[id*="chart"] canvas,
+div[class*="chart"] canvas {
+    background: var(--color-surface) !important;
+}
+
+/* Chart legend enhancements */
+.chart-legend-enhanced {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 0;
+    margin-bottom: 16px;
+    border-bottom: 2px solid rgba(var(--color-teal-500-rgb), 0.1);
+    background: rgba(var(--color-teal-500-rgb), 0.02);
+    border-radius: 8px;
+    padding: 12px 16px;
+}
+
+.chart-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.chart-legend-line {
+    width: 24px;
+    height: 3px;
+    border-radius: 2px;
+}
+
+/* Indicator overlay styling improvements */
+.indicator-overlay-guide {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: var(--color-surface);
+    border: 1px solid rgba(var(--color-teal-500-rgb), 0.2);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 10px;
+    box-shadow: var(--shadow-md);
+    z-index: 10;
+}
+
+.indicator-overlay-guide h6 {
+    margin: 0 0 4px 0;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-primary);
+}
+
+.indicator-overlay-guide ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.indicator-overlay-guide li {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 2px;
+}
+
+/* Chart loading state enhancements */
+.chart-container.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(var(--color-teal-500-rgb), 0.05) 0%, rgba(var(--color-teal-500-rgb), 0.02) 100%);
+    border-style: dashed;
+    border-color: rgba(var(--color-teal-500-rgb), 0.3);
+}
+
+.chart-container.loading .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(var(--color-teal-500-rgb), 0.2);
+    border-top: 3px solid var(--color-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 12px;
+}
+
+.chart-container.loading::after {
+    content: "📊 Loading enhanced chart with technical indicators...";
+    color: var(--color-primary);
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+}
+
+/* Chart error state */
+.chart-container.error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(var(--color-red-500-rgb), 0.05) 0%, rgba(var(--color-red-500-rgb), 0.02) 100%);
+    border-color: rgba(var(--color-red-500-rgb), 0.3);
+    color: var(--color-error);
+}
+
+/* Responsive enhancements */
+@media (max-width: 1024px) {
+    .technical-analysis-card .chart-container {
+        height: 280px !important;
+        padding: var(--space-12);
+    }
+    
+    .indicator-overlay-guide {
+        position: static;
+        margin-bottom: 12px;
+    }
+}
+
+@media (max-width: 768px) {
+    .technical-analysis-card .chart-container {
+        height: 250px !important;
+        padding: var(--space-8);
+    }
+    
+    .chart-legend-enhanced {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 /* === Enhanced Technical Indicators Additions === */
@@ -4292,6 +4654,372 @@ select option {
 .color-sma200 { background:#d8345f; }
 .color-ema20 { background:#6dd5fa; }
 .color-ema50 { background:#2193b0; }
+
+/* === NEW Enhanced Technical Indicators UI === */
+
+/* Timeframe Category Badges */
+.timeframe-category {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+.timeframe-category.scalping {
+    background: linear-gradient(135deg, #ff4757, #ff3742);
+    color: white;
+    box-shadow: 0 2px 4px rgba(255, 71, 87, 0.3);
+}
+
+.timeframe-category.intraday {
+    background: linear-gradient(135deg, #ff6b35, #ff8c42);
+    color: white;
+    box-shadow: 0 2px 4px rgba(255, 107, 53, 0.3);
+}
+
+.timeframe-category.swing {
+    background: linear-gradient(135deg, #5352ed, #4834d4);
+    color: white;
+    box-shadow: 0 2px 4px rgba(83, 82, 237, 0.3);
+}
+
+.timeframe-category.position {
+    background: linear-gradient(135deg, #26de81, #20bf6b);
+    color: white;
+    box-shadow: 0 2px 4px rgba(38, 222, 129, 0.3);
+}
+
+.optimization-note {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+    font-style: italic;
+    margin-top: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    background: var(--color-surface-alt);
+    border-radius: 4px;
+    border-left: 3px solid var(--color-accent-soft);
+}
+
+.timeframe-info {
+    background: linear-gradient(135deg, var(--color-primary-faint) 0%, var(--color-surface-alt) 100%);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+    width: 100%;
+}
+
+.timeframe-info .info-content h4 {
+    margin: 0 0 0.5rem;
+    color: var(--color-text);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.timeframe-info .info-content p {
+    margin: 0 0 0.75rem;
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.feature-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.feature-badge {
+    background: var(--color-accent-faint);
+    color: var(--color-accent-strong);
+    border: 1px solid var(--color-accent-soft);
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
+
+/* Fix control row layout */
+.tech-indicator-controls .control-row {
+    display: flex;
+    gap: 1rem;
+    align-items: end;
+    flex-wrap: wrap;
+    margin-bottom: 0;
+}
+
+.tech-indicator-controls .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 200px;
+}
+
+.tech-indicator-controls label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+.tech-indicator-controls .form-control {
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.tech-indicator-controls .btn {
+    margin-top: auto;
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.market-overview {
+    background: var(--color-surface-alt);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.market-overview h4 {
+    margin: 0 0 0.75rem;
+    color: var(--color-text);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.75rem;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 0.75rem 0.5rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+}
+
+.stat-number {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 0.25rem;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.technical-guide {
+    background: var(--color-surface-alt);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.technical-guide h4 {
+    margin: 0 0 0.75rem;
+    color: var(--color-text);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.technical-guide p {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: 0.8rem;
+    line-height: 1.5;
+}
+
+.enhanced-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: var(--color-surface-alt);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+}
+
+.enhanced-controls form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex: 1;
+    min-width: 300px;
+}
+
+.enhanced-controls input[type="text"] {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: 0.85rem;
+}
+
+.enhanced-controls select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: 0.85rem;
+    min-width: 120px;
+}
+
+.enhanced-controls button {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-primary);
+    color: var(--color-primary-text);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.enhanced-controls button:hover {
+    background: var(--color-primary-strong);
+    transform: translateY(-1px);
+}
+
+.enhanced-controls button.secondary {
+    background: var(--color-surface);
+    color: var(--color-text);
+    border-color: var(--color-border-strong);
+}
+
+.enhanced-controls button.secondary:hover {
+    background: var(--color-surface-alt);
+}
+
+.ticker-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px var(--color-popup-shadow);
+    z-index: 1000;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.suggestion-item {
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    border-bottom: 1px solid var(--color-border-faint);
+}
+
+.suggestion-item:hover {
+    background: var(--color-surface-alt);
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.technical-legend {
+    background: var(--color-surface-alt);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.technical-legend h4 {
+    margin: 0 0 0.75rem;
+    color: var(--color-text);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.legend-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+}
+
+.legend-color {
+    width: 16px;
+    height: 3px;
+    border-radius: 2px;
+}
+
+/* Corner Auto-refresh Indicator */
+.auto-refresh-corner {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    box-shadow: var(--shadow-lg);
+    z-index: 10000;
+    transition: opacity 0.3s ease;
+}
+
+.auto-refresh-corner.hidden {
+    display: none;
+}
+
+.auto-refresh-corner i {
+    color: var(--color-primary);
+    font-size: 0.75rem;
+}
+
+.auto-refresh-corner span {
+    font-weight: 500;
+    white-space: nowrap;
+}
 
 /* ==========================================================================
    PRICE ALERTS POPUP SYSTEM - Enhancement #3 (Updated)
@@ -5543,4 +6271,808 @@ select option {
         font-size: var(--font-size-sm);
         text-align: left;
     }
+}
+
+/* Portfolio Auto-Refresh Loading States */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-40);
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    margin: var(--space-16) 0;
+}
+
+.loading-state i {
+    color: var(--color-primary);
+    margin-bottom: var(--space-16);
+}
+
+.loading-state p {
+    color: var(--color-text-secondary);
+    margin: 0;
+    font-size: var(--font-size-sm);
+}
+
+.loading-metrics {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-8);
+    padding: var(--space-16);
+    background: var(--color-primary-light);
+    border-radius: var(--radius-md);
+    color: var(--color-primary);
+    font-weight: var(--font-weight-medium);
+}
+
+.error-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-40);
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-error);
+    margin: var(--space-16) 0;
+}
+
+.error-state i {
+    color: var(--color-error);
+    margin-bottom: var(--space-16);
+}
+
+.error-state h3 {
+    color: var(--color-error);
+    margin: 0 0 var(--space-8) 0;
+}
+
+.error-state p {
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--space-16) 0;
+    text-align: center;
+}
+
+/* Transaction History Styles */
+.transaction-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.transaction-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-12);
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--color-border);
+}
+
+.transaction-item.buy {
+    border-left-color: var(--color-success);
+    background: rgba(34, 197, 94, 0.05);
+}
+
+.transaction-item.sell {
+    border-left-color: var(--color-error);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.transaction-main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.transaction-symbol {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+}
+
+.transaction-symbol strong {
+    color: var(--color-text);
+    font-weight: var(--font-weight-semibold);
+}
+
+.transaction-type {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    padding: var(--space-2) var(--space-6);
+    border-radius: var(--radius-full);
+    text-transform: uppercase;
+}
+
+.transaction-type.buy {
+    background: var(--color-success-light);
+    color: var(--color-success);
+}
+
+.transaction-type.sell {
+    background: var(--color-error-light);
+    color: var(--color-error);
+}
+
+.transaction-details {
+    display: flex;
+    gap: var(--space-12);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+.transaction-meta {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.transaction-value {
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+}
+
+.transaction-time {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+}
+
+/* Analytics Grid Enhancements */
+.analytics-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-8) 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.analytics-item:last-child {
+    border-bottom: none;
+}
+
+.analytics-label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    font-weight: var(--font-weight-medium);
+}
+
+.analytics-value {
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+}
+
+.analytics-value.positive {
+    color: var(--color-success);
+}
+
+/* Price Alerts Panel Styles - Fix Overlapping Issue */
+.alerts-container {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    width: 400px;
+    max-height: 80vh;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+    transform: translateX(420px);
+    transition: transform 0.3s ease-in-out;
+    overflow: hidden;
+}
+
+.alerts-container.show {
+    transform: translateX(0);
+}
+
+.alerts-container .alerts-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: var(--color-surface-alt);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.alerts-container .alerts-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.alerts-container .alerts-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.alerts-container .alerts-body {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 1rem;
+}
+
+.alerts-container .alert-item {
+    padding: 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    background: var(--color-surface);
+    transition: all 0.2s ease;
+}
+
+.alerts-container .alert-item:hover {
+    background: var(--color-surface-alt);
+    transform: translateY(-1px);
+}
+
+.alerts-container .no-data-message {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--color-text-secondary);
+}
+
+/* ===== VISUAL ENHANCEMENTS ===== */
+
+/* === DATA LOADING STATES & SKELETON LOADERS === */
+.skeleton-loader {
+  background: linear-gradient(90deg, 
+    var(--color-surface-alt) 25%, 
+    rgba(var(--color-text-primary-rgb), 0.05) 50%, 
+    var(--color-surface-alt) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-text {
+  height: 1rem;
+  margin: 0.25rem 0;
+}
+
+.skeleton-title {
+  height: 1.5rem;
+  width: 60%;
+  margin: 0.5rem 0;
+}
+
+.skeleton-price {
+  height: 2rem;
+  width: 80%;
+  margin: 0.5rem 0;
+}
+
+.skeleton-chart {
+  height: 120px;
+  width: 100%;
+  margin: 1rem 0;
+  border-radius: var(--radius-md);
+}
+
+/* Loading states for cards */
+.card.loading {
+  pointer-events: none;
+  opacity: 0.7;
+  position: relative;
+  overflow: hidden;
+}
+
+.card.loading::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(var(--color-primary-rgb), 0.1), transparent);
+  animation: loading-sweep 2s infinite;
+  z-index: 1;
+}
+
+@keyframes loading-sweep {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* Spinner variations */
+.loading-spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.spinner-dot {
+  width: 4px;
+  height: 4px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  animation: spinner-pulse 1.4s infinite ease-in-out both;
+}
+
+.spinner-dot:nth-child(1) { animation-delay: -0.32s; }
+.spinner-dot:nth-child(2) { animation-delay: -0.16s; }
+.spinner-dot:nth-child(3) { animation-delay: 0s; }
+
+@keyframes spinner-pulse {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+/* === ENHANCED CARD HOVER EFFECTS === */
+.card, .market-summary-card, .tech-chart-card, .portfolio-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateZ(0); /* Enable hardware acceleration */
+  backface-visibility: hidden;
+}
+
+.card:hover, .market-summary-card:hover, .tech-chart-card:hover, .portfolio-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 
+    0 10px 25px rgba(var(--color-primary-rgb), 0.15),
+    0 4px 10px rgba(0, 0, 0, 0.1);
+  border-color: rgba(var(--color-primary-rgb), 0.3);
+}
+
+/* Enhanced hover for index cards */
+.index-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.index-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(var(--color-primary-rgb), 0.05), transparent);
+  transition: left 0.5s ease;
+  z-index: 0;
+}
+
+.index-card:hover::before {
+  left: 100%;
+}
+
+.index-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(var(--color-primary-rgb), 0.12);
+}
+
+/* Price change hover effects */
+.change-positive, .change-negative {
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.change-positive:hover {
+  background: rgba(var(--color-success-rgb), 0.1);
+  transform: scale(1.05);
+}
+
+.change-negative:hover {
+  background: rgba(var(--color-danger-rgb), 0.1);
+  transform: scale(1.05);
+}
+
+/* Button hover enhancements */
+.btn, .header-action-btn, .tab-nav button {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::before, .header-action-btn::before, .tab-nav button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: all 0.3s ease;
+  z-index: 0;
+}
+
+.btn:hover::before, .header-action-btn:hover::before, .tab-nav button:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* === MODERN STATUS INDICATORS === */
+.status-indicator {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: relative;
+}
+
+.status-dot::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  opacity: 0.3;
+  animation: status-pulse 2s infinite;
+}
+
+@keyframes status-pulse {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  50% { transform: scale(1.2); opacity: 0.1; }
+  100% { transform: scale(0.8); opacity: 0.5; }
+}
+
+/* Status variations */
+.status-online {
+  background: rgba(var(--color-success-rgb), 0.1);
+  color: var(--color-success);
+  border: 1px solid rgba(var(--color-success-rgb), 0.2);
+}
+
+.status-online .status-dot {
+  background: var(--color-success);
+}
+
+.status-online .status-dot::before {
+  background: var(--color-success);
+}
+
+.status-offline {
+  background: rgba(var(--color-danger-rgb), 0.1);
+  color: var(--color-danger);
+  border: 1px solid rgba(var(--color-danger-rgb), 0.2);
+}
+
+.status-offline .status-dot {
+  background: var(--color-danger);
+}
+
+.status-loading {
+  background: rgba(var(--color-warning-rgb), 0.1);
+  color: var(--color-warning);
+  border: 1px solid rgba(var(--color-warning-rgb), 0.2);
+}
+
+.status-loading .status-dot {
+  background: var(--color-warning);
+  animation: loading-pulse 1s infinite;
+}
+
+@keyframes loading-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+/* Connection status indicator */
+.connection-status {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.connection-status.hidden {
+  transform: translateX(100px);
+  opacity: 0;
+}
+
+/* Data freshness indicators */
+.data-timestamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  color: var(--color-text-tertiary);
+  margin-top: 0.25rem;
+}
+
+.data-timestamp .freshness-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+}
+
+.data-fresh .freshness-dot {
+  background: var(--color-success);
+  animation: freshness-pulse 3s infinite;
+}
+
+.data-stale .freshness-dot {
+  background: var(--color-warning);
+}
+
+.data-error .freshness-dot {
+  background: var(--color-danger);
+}
+
+@keyframes freshness-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Market session status enhancement */
+.session-indicator {
+  position: relative;
+  padding: 0.375rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.3s ease;
+}
+
+.session-open {
+  background: linear-gradient(135deg, rgba(var(--color-success-rgb), 0.1), rgba(var(--color-success-rgb), 0.05));
+  color: var(--color-success);
+  border: 1px solid rgba(var(--color-success-rgb), 0.3);
+  box-shadow: 0 0 20px rgba(var(--color-success-rgb), 0.1);
+}
+
+.session-closed {
+  background: linear-gradient(135deg, rgba(var(--color-danger-rgb), 0.1), rgba(var(--color-danger-rgb), 0.05));
+  color: var(--color-danger);
+  border: 1px solid rgba(var(--color-danger-rgb), 0.3);
+}
+
+.session-pre-market, .session-after-hours {
+  background: linear-gradient(135deg, rgba(var(--color-warning-rgb), 0.1), rgba(var(--color-warning-rgb), 0.05));
+  color: var(--color-warning);
+  border: 1px solid rgba(var(--color-warning-rgb), 0.3);
+}
+
+/* ===== CONTACT LINKS & DATA FEED POSITIONING ===== */
+
+/* Contact Links - Bottom Left */
+.contact-links {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.contact-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  background: var(--color-surface);
+  border: 2px solid var(--color-primary);
+  border-radius: 50%;
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+.contact-link::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(var(--color-primary-rgb), 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.contact-link:hover::before {
+  left: 100%;
+}
+
+.contact-link:hover {
+  background: var(--color-primary);
+  color: var(--color-surface);
+  transform: translateY(-3px) scale(1.1);
+  box-shadow: 0 8px 20px rgba(var(--color-primary-rgb), 0.3);
+}
+
+.contact-link i {
+  font-size: 20px;
+  z-index: 1;
+  position: relative;
+}
+
+/* Contact link specific colors */
+.contact-link.email {
+  border-color: #ea4335;
+  color: #ea4335;
+}
+
+.contact-link.email:hover {
+  background: #ea4335;
+  color: white;
+  box-shadow: 0 8px 20px rgba(234, 67, 53, 0.3);
+}
+
+.contact-link.whatsapp {
+  border-color: #25d366;
+  color: #25d366;
+}
+
+.contact-link.whatsapp:hover {
+  background: #25d366;
+  color: white;
+  box-shadow: 0 8px 20px rgba(37, 211, 102, 0.3);
+}
+
+.contact-link.github {
+  border-color: #333;
+  color: #333;
+}
+
+.contact-link.github:hover {
+  background: #333;
+  color: white;
+  box-shadow: 0 8px 20px rgba(51, 51, 51, 0.3);
+}
+
+.contact-link.linkedin {
+  border-color: #0077b5;
+  color: #0077b5;
+}
+
+.contact-link.linkedin:hover {
+  background: #0077b5;
+  color: white;
+  box-shadow: 0 8px 20px rgba(0, 119, 181, 0.3);
+}
+
+/* Tooltip for contact links */
+.contact-link::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 60px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1001;
+}
+
+.contact-link:hover::after {
+  opacity: 1;
+  visibility: visible;
+  left: 65px;
+}
+
+/* Prevent body scroll when alerts panel is open */
+body.alerts-panel-open {
+    overflow: hidden;
+}
+
+.analytics-value.negative {
+    color: var(--color-error);
+}
+
+/* ===== CHART.JS TOOLTIP ENHANCEMENTS ===== */
+
+/* Ensure Chart.js tooltips are always visible */
+.chartjs-tooltip {
+    opacity: 1 !important;
+    pointer-events: none !important;
+    z-index: 1001 !important;
+}
+
+/* Ensure chart containers allow tooltips to show */
+.chart-container {
+    position: relative !important;
+    overflow: visible !important;
+}
+
+.tech-chart-card .chart-container,
+.technical-indicators .chart-container {
+    z-index: 100 !important;
+}
+
+canvas {
+    position: relative !important;
+    z-index: 101 !important;
+}
+
+/* ===== CHART.JS TOOLTIP FIXES ===== */
+
+/* Ensure Chart.js tooltips are always visible and properly styled */
+.chartjs-tooltip {
+  background: var(--color-surface-overlay) !important;
+  border: 2px solid var(--color-border) !important;
+  color: var(--color-text-primary) !important;
+  opacity: 1 !important;
+  border-radius: 8px !important;
+  padding: 12px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+.chartjs-tooltip-title {
+  color: var(--color-text-primary) !important;
+  font-weight: 600 !important;
+  margin-bottom: 6px !important;
+}
+
+.chartjs-tooltip-body {
+  color: var(--color-text-secondary) !important;
+}
+
+/* Override any chart container that might be affecting tooltips */
+.tech-chart-card canvas {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.tech-chart-card .chart-container {
+  position: relative !important;
+  overflow: visible !important;
+}
+
+/* Ensure tooltips appear above other elements */
+canvas {
+  position: relative !important;
+  z-index: 10 !important;
+}
+
+/* Technical indicators specific tooltip styling */
+.technical-indicators .chart-container {
+  position: relative !important;
+  z-index: 100 !important;
+}
+
+.technical-indicators canvas {
+  z-index: 101 !important;
 }
