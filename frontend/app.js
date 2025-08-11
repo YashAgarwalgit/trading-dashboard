@@ -87,10 +87,13 @@ class InstitutionalTradingPlatform {
         this.symbolMeta = new Map(); // cache: symbol -> { sector }
     this._miRefreshTimer = null; // debounce timer for market intelligence refresh
         
-        this.stockAPI = 'http://localhost:5000/api';
+        // Auto-detect API URL based on environment
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const baseUrl = isLocal ? 'http://localhost:5000' : window.location.origin;
+        this.stockAPI = `${baseUrl}/api`;
         
         // Replace the old socket initialization with WebSocketManager
-        this.webSocketManager = new WebSocketManager('http://localhost:5000', this);
+        this.webSocketManager = new WebSocketManager(baseUrl, this);
         this.socket = null; // Will be set by WebSocketManager
         
         this.init();
