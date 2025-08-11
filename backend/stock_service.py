@@ -3250,10 +3250,22 @@ alerts_thread = threading.Thread(target=background_alert_checker, daemon=True)
 alerts_thread.start()
 
 if __name__ == '__main__':
+    import os
+    
     print("🚀 Starting Clean Trading Platform Backend...")
     print("✅ Enhanced caching enabled")
     print("✅ Rate limiting active") 
     print("✅ Background cleanup running")
     print("🔗 Server starting on http://0.0.0.0:5000")
     
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    # Check if running in production (Render sets PORT env var)
+    port = int(os.environ.get('PORT', 5000))
+    debug_mode = os.environ.get('FLASK_ENV') != 'production'
+    
+    if os.environ.get('FLASK_ENV') == 'production':
+        print("🌐 Running in PRODUCTION mode")
+        # In production, let Gunicorn handle the WSGI server
+        socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
+    else:
+        print("🔧 Running in DEVELOPMENT mode")
+        socketio.run(app, host='0.0.0.0', port=port, debug=True)
