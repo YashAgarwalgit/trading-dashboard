@@ -1,4 +1,4 @@
-# Trading Dashboard Requirements - Python 3.13 Compatible
+# Trading Dashboard Requirements - Python 3.13 Compatible & Complete
 # Core Framework
 Flask==3.0.0
 Flask-CORS==4.0.0
@@ -7,17 +7,27 @@ Flask-SocketIO==5.3.6
 # Data & Finance (Python 3.13 compatible versions)
 yfinance==0.2.65
 pandas>=2.2.0
+numpy>=1.26.0
 
-# Networking & WebSockets
+# Networking & WebSockets  
 requests==2.31.0
 python-socketio==5.10.0
 
-# Market Intelligence (compatible versions)
-numpy>=1.26.0
+# Market Intelligence & Web Scraping
 beautifulsoup4==4.12.2
-lxml==5.3.0
+lxml>=5.3.0
 textblob==0.17.1
+
+
+# Database & Storage
+sqlite3  # Built-in with Python
 
 # Cloud deployment essentials
 gunicorn==21.2.0
 eventlet==0.33.3
+
+# Additional Dependencies (ADDED MISSING)
+python-dateutil>=2.8.0
+pytz>=2023.3
+urllib3>=1.26.0
+feedparser
