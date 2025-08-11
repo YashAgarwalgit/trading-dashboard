@@ -85,7 +85,7 @@ class InstitutionalTradingPlatform {
         this.orderBook = [];
         this.watchlist = new Set();
         this.symbolMeta = new Map(); // cache: symbol -> { sector }
-    this._miRefreshTimer = null; // debounce timer for market intelligence refresh
+        this._miRefreshTimer = null; // debounce timer for market intelligence refresh
         
         // Auto-detect API URL based on environment
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -96,10 +96,72 @@ class InstitutionalTradingPlatform {
         this.webSocketManager = new WebSocketManager(baseUrl, this);
         this.socket = null; // Will be set by WebSocketManager
         
+        // Auto-refresh intervals
+        this.refreshIntervals = {
+            dashboard: null,    // 5 seconds - portfolio and main data
+            marketData: null,   // 5 seconds - stock prices and market intelligence
+            time: null          // 1 second - time and quick metrics
+        };
+        
+        // UI update guards (prevent flicker)
+        this.updateGuards = new Set();
+        
+        // Debounced portfolio update for real-time price changes
+        this.portfolioUpdateTimeouts = new Map(); // symbol -> timeout
+        
+        // Initialize the platform
         this.init();
     }
 
-    // Add these methods after the constructor
+    // DOM Update Utilities (prevent flicker)
+    updateElementContent(element, newContent, useFragment = true) {
+        if (!element || this.updateGuards.has(element.id || element.className)) return;
+        
+        const key = element.id || element.className || 'element';
+        if (useFragment && typeof newContent === 'string') {
+            // Use document fragment to minimize reflow
+            const template = document.createElement('template');
+            template.innerHTML = newContent.trim();
+            
+            // Only update if content actually changed
+            if (element.innerHTML.trim() !== newContent.trim()) {
+                this.updateGuards.add(key);
+                element.replaceChildren(...template.content.childNodes);
+                setTimeout(() => this.updateGuards.delete(key), 150);
+            }
+        } else {
+            // Direct update for simple content
+            if (element.textContent !== newContent) {
+                element.textContent = newContent;
+            }
+        }
+    }
+
+    safeUpdateHTML(elementId, newHTML) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            this.updateElementContent(element, newHTML);
+        }
+    }
+
+    async loadPortfolios() {
+        try {
+            const response = await fetch(`${this.stockAPI}/portfolios`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.portfolios) {
+                    this.portfolios.clear();
+                    data.portfolios.forEach(portfolio => {
+                        this.portfolios.set(portfolio.id, portfolio);
+                    });
+                }
+            }
+            this.updatePortfolioSelector();
+        } catch (error) {
+            console.error('Error loading portfolios:', error);
+        }
+    }
+
     async createPortfolio(formData) {
         try {
             const response = await fetch(`${this.stockAPI}/portfolios`, {
@@ -110,14 +172,10 @@ class InstitutionalTradingPlatform {
                 body: JSON.stringify(formData)
             });
             
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
             const result = await response.json();
-            if (result.success) {
+            
+            if (response.ok && result.success) {
                 this.portfolios.set(result.portfolio.id, result.portfolio);
-                this.updatePortfolioSelector();
                 return result.portfolio;
             } else {
                 throw new Error(result.error || 'Failed to create portfolio');
@@ -980,6 +1038,46 @@ class InstitutionalTradingPlatform {
                 break;
             case 'market':
                 this.updateMarketView();
+                
+                // Enhanced Market Intelligence initialization
+                console.log('🎯 Market Intelligence tab activated - initializing enhanced features');
+                
+                // Initialize Enhanced Market Intelligence if not already done
+                setTimeout(() => {
+                    if (!window.marketIntelligence) {
+                        console.log('🚀 Initializing Enhanced Market Intelligence...');
+                        if (window.EnhancedMarketIntelligence) {
+                            window.marketIntelligence = new window.EnhancedMarketIntelligence();
+                            window.marketIntelligence.init();
+                            console.log('✅ Enhanced Market Intelligence initialized');
+                        } else {
+                            console.warn('⚠️ EnhancedMarketIntelligence class not available, retrying...');
+                            // Retry after scripts load
+                            setTimeout(() => {
+                                if (window.EnhancedMarketIntelligence && !window.marketIntelligence) {
+                                    window.marketIntelligence = new window.EnhancedMarketIntelligence();
+                                    window.marketIntelligence.init();
+                                    console.log('✅ Enhanced Market Intelligence initialized (retry)');
+                                }
+                            }, 2000);
+                        }
+                    } else {
+                        // Refresh if already initialized
+                        console.log('🔄 Refreshing Enhanced Market Intelligence...');
+                        if (window.marketIntelligence.loadMarketData) {
+                            window.marketIntelligence.loadMarketData();
+                        }
+                    }
+                    
+                    // Ensure Market News is initialized
+                    if (!window.marketNews) {
+                        console.log('📰 Initializing Market News...');
+                        if (window.MarketNewsAnalyzer) {
+                            window.marketNews = new window.MarketNewsAnalyzer();
+                        }
+                    }
+                }, 500);
+                
                 break;
         }
     }
@@ -1139,18 +1237,14 @@ class InstitutionalTradingPlatform {
     }
 
     quickBuy(symbol, price) {
-        const quantityInput = document.getElementById('orderQuantity');
+        // Open the buy modal with proper price fetching
+        this.showBuyModal(symbol);
+        
+        // Set default quantity
+        const quantityInput = document.getElementById('buyQuantity');
         if (quantityInput && !quantityInput.value) {
             quantityInput.value = '1';
         }
-        
-        const symbolInput = document.getElementById('orderSymbol');
-        if (symbolInput) {
-            symbolInput.value = symbol;
-        }
-        
-        // Auto-execute the order
-        this.placeOrder();
     }
 
     async fetchStockData(ticker) {
@@ -1283,8 +1377,31 @@ class InstitutionalTradingPlatform {
 
         // Update charts if ticker is being displayed
         this.updateStockChart(stockData.symbol);
+        
+        // If this stock is in the active portfolio, trigger portfolio update
+        if (this.activePortfolio) {
+            this.debouncedPortfolioUpdate(stockData.symbol);
+        }
+        
     // Throttled analytics update (price streaming)
     this.notifyMarketIntelligence(true);
+    }
+    
+    // Debounced portfolio update for real-time price changes
+    debouncedPortfolioUpdate(symbol) {
+        // Clear existing timeout for this symbol
+        if (this.portfolioUpdateTimeouts.has(symbol)) {
+            clearTimeout(this.portfolioUpdateTimeouts.get(symbol));
+        }
+        
+        // Set new timeout to update portfolio after 1 second of no price changes
+        const timeout = setTimeout(async () => {
+            console.log(`💰 Updating portfolio due to price change in ${symbol}`);
+            await this.updatePortfolioSummary();
+            this.portfolioUpdateTimeouts.delete(symbol);
+        }, 1000);
+        
+        this.portfolioUpdateTimeouts.set(symbol, timeout);
     }
 
     updateStockChart(ticker) {
@@ -1591,7 +1708,14 @@ class InstitutionalTradingPlatform {
             
             if (response.ok && result.success) {
                 this.showStatus(`✅ ${result.message}`, 'success');
-                this.updatePortfolioDisplay();
+                await this.updatePortfolioSummary();
+                await this.updatePortfolioDisplay();
+                
+                // Trigger enhanced analytics refresh (if portfolio-enhancements.js is loaded)
+                if (this.refreshPortfolioAnalytics) {
+                    await this.refreshPortfolioAnalytics();
+                }
+                
                 return result.portfolio;
             } else {
                 throw new Error(result.error || 'Failed to buy stock');
@@ -1621,7 +1745,14 @@ class InstitutionalTradingPlatform {
             
             if (response.ok && result.success) {
                 this.showStatus(`✅ ${result.message}`, 'success');
-                this.updatePortfolioDisplay();
+                await this.updatePortfolioSummary();
+                await this.updatePortfolioDisplay();
+                
+                // Trigger enhanced analytics refresh (if portfolio-enhancements.js is loaded)
+                if (this.refreshPortfolioAnalytics) {
+                    await this.refreshPortfolioAnalytics();
+                }
+                
                 return result.portfolio;
             } else {
                 throw new Error(result.error || 'Failed to sell stock');
@@ -1635,10 +1766,13 @@ class InstitutionalTradingPlatform {
 
     async getPortfolioValue(portfolioId) {
         try {
-            const response = await fetch(`${this.stockAPI}/portfolios/${portfolioId}/value`);
+            // Add timestamp to prevent caching and ensure fresh data
+            const timestamp = Date.now();
+            const response = await fetch(`${this.stockAPI}/portfolios/${portfolioId}/value?t=${timestamp}`);
             const data = await response.json();
             
             if (response.ok) {
+                console.log(`🔄 Portfolio value refreshed: Total=${data.total_value}, P&L=${data.total_pnl}`);
                 return data;
             } else {
                 throw new Error(data.error || 'Failed to get portfolio value');
@@ -1652,10 +1786,13 @@ class InstitutionalTradingPlatform {
 
     async getPortfolioPositions(portfolioId) {
         try {
-            const response = await fetch(`${this.stockAPI}/portfolios/${portfolioId}/positions`);
+            // Add timestamp to prevent caching and ensure fresh data
+            const timestamp = Date.now();
+            const response = await fetch(`${this.stockAPI}/portfolios/${portfolioId}/positions?t=${timestamp}`);
             const data = await response.json();
             
             if (response.ok) {
+                console.log(`🔄 Portfolio positions refreshed: ${Object.keys(data.positions || {}).length} positions`);
                 return data;
             } else {
                 throw new Error(data.error || 'Failed to get portfolio positions');
@@ -1671,18 +1808,71 @@ class InstitutionalTradingPlatform {
     async updatePortfolioDisplay() {
         if (!this.activePortfolio) return;
         
+        const positionsContainer = document.getElementById('portfolioPositions');
+        const summaryContainer = document.querySelector('.portfolio-summary');
+        
+        // Show loading indicators
+        if (positionsContainer) {
+            positionsContainer.innerHTML = `
+                <div class="loading-state">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                    <p>Refreshing portfolio with live prices...</p>
+                </div>
+            `;
+        }
+        
+        if (summaryContainer) {
+            summaryContainer.innerHTML = `
+                <div class="loading-metrics">
+                    <i class="fas fa-sync fa-spin"></i> Updating...
+                </div>
+            `;
+        }
+        
         try {
-            // Get current portfolio value
-            const valueData = await this.getPortfolioValue(this.activePortfolio.id);
-            const positionsData = await this.getPortfolioPositions(this.activePortfolio.id);
+            // Get current portfolio value with live prices
+            const [valueData, positionsData] = await Promise.all([
+                this.getPortfolioValue(this.activePortfolio.id),
+                this.getPortfolioPositions(this.activePortfolio.id)
+            ]);
             
             if (valueData && positionsData) {
                 this.displayPortfolioMetrics(valueData);
                 await this.displayPortfolioPositions(positionsData.positions);
+                
+                // Update enhanced analytics if available
+                if (this.updateAnalyticsDisplay) {
+                    this.updateAnalyticsDisplay(positionsData.positions);
+                }
+                
+                // Update transaction history if available  
+                if (this.updateTransactionHistory) {
+                    await this.updateTransactionHistory();
+                }
+                
+                // Update last refresh time in header
+                if (typeof this.updateLastRefreshTime === 'function') {
+                    this.updateLastRefreshTime();
+                } else {
+                    console.warn('updateLastRefreshTime method not available');
+                }
+            } else {
+                throw new Error('Failed to fetch portfolio data');
             }
             
         } catch (error) {
-            console.error('Failed to update portfolio display:', error);
+            console.warn('Portfolio display update error (will retry automatically):', error);
+            
+            // Show less intrusive error state - just log and use cached data if available
+            if (positionsContainer && positionsContainer.innerHTML.includes('loading-state')) {
+                positionsContainer.innerHTML = `
+                    <div class="info-state" style="text-align: center; padding: 20px; color: #666;">
+                        <i class="fas fa-clock fa-lg"></i>
+                        <h4 style="margin: 10px 0;">Portfolio Data Loading...</h4>
+                        <p>Live data will refresh automatically in the next update cycle.</p>
+                    </div>
+                `;
+            }
         }
     }
 
@@ -2171,19 +2361,179 @@ class InstitutionalTradingPlatform {
 
     // Utility methods
     startRealTimeUpdates() {
-        setInterval(() => {
+        // Clear any existing intervals
+        this.stopRealTimeUpdates();
+        
+        // 1-second updates: time and quick metrics only
+        this.refreshIntervals.time = setInterval(() => {
             this.updateCurrentTime();
-            this.updateDashboard();
-            // Reformat header metrics periodically
             this.formatHeaderMetrics();
         }, 1000);
+        
+        // 30-second updates: portfolio and market data (reduced from 3s to 30s)
+        this.refreshIntervals.dashboard = setInterval(async () => {
+            console.log('🔄 Auto-refreshing dashboard data (30s interval)...');
+            await this.refreshAllData();
+        }, 30000);  // Changed from 3000 to 30000
+        
+        // Initial market data load
+        setTimeout(() => this.refreshAllData(), 2000);
+        
+        console.log('✅ Auto-refresh enabled: 1s (time/metrics), 30s (portfolio/market data)');
     }
-
+    
+    // Stop all refresh intervals
+    stopRealTimeUpdates() {
+        Object.values(this.refreshIntervals).forEach(interval => {
+            if (interval) clearInterval(interval);
+        });
+        this.refreshIntervals = {
+            dashboard: null,
+            marketData: null,
+            time: null
+        };
+    }
+    
+    // Comprehensive data refresh method
+    async refreshAllData() {
+        try {
+            // Show corner indicator
+            const indicator = document.getElementById('autoRefreshIndicator');
+            if (indicator) {
+                indicator.classList.remove('hidden');
+            }
+            
+            // Refresh active portfolio data with live prices
+            if (this.activePortfolio) {
+                console.log('🔄 Refreshing portfolio data with live prices...');
+                await this.updatePortfolioSummary();
+                await this.updatePortfolioDisplay();
+                this.updateDashboard();
+                
+                // Refresh analytics without full transaction history (for performance)
+                if (this.updateAnalyticsDisplay) {
+                    const positionsData = await this.getPortfolioPositions(this.activePortfolio.id);
+                    if (positionsData && positionsData.positions) {
+                        this.updateAnalyticsDisplay(positionsData.positions);
+                    }
+                }
+            }
+            
+            // Refresh market intelligence if visible
+            const marketIntelTab = document.querySelector('[data-tab="market-intelligence"]');
+            if (marketIntelTab && marketIntelTab.classList.contains('active')) {
+                this.refreshMarketIntelligence();
+            }
+            
+            // Refresh technical indicators if visible
+            const techIndicatorsTab = document.querySelector('[data-tab="technical-indicators"]');
+            if (techIndicatorsTab && techIndicatorsTab.classList.contains('active')) {
+                this.refreshTechnicalIndicators();
+            }
+            
+            // Update live stock prices for watchlist
+            await this.updateWatchlistPrices();
+            
+            console.log('✅ Auto-refresh completed successfully');
+            
+        } catch (error) {
+            console.error('Error during auto-refresh:', error);
+        } finally {
+            // Hide corner indicator
+            const indicator = document.getElementById('autoRefreshIndicator');
+            if (indicator) {
+                setTimeout(() => indicator.classList.add('hidden'), 500);
+            }
+        }
+    }
+    
+    // Refresh market intelligence data
+    refreshMarketIntelligence() {
+        if (window.marketIntelligence && window.marketIntelligence.refreshData) {
+            window.marketIntelligence.refreshData();
+        }
+    }
+    
+    // Refresh technical indicators
+    refreshTechnicalIndicators() {
+        if (window.technicalIndicators && typeof window.technicalIndicators.refresh === 'function') {
+            window.technicalIndicators.refresh();
+        }
+    }
+    
+    // Update watchlist prices
+    async updateWatchlistPrices() {
+        if (this.watchlist.size === 0) return;
+        
+        try {
+            for (const symbol of this.watchlist) {
+                const data = await this.fetchStockData(symbol);
+                if (data) {
+                    this.liveStocks.set(symbol, data);
+                    this.updateWatchlistDisplay(symbol, data);
+                }
+            }
+        } catch (error) {
+            console.error('Error updating watchlist prices:', error);
+        }
+    }
+    
     updateCurrentTime() {
         const timeEl = document.getElementById('currentTime');
         if (timeEl) {
             const now = new Date();
             timeEl.textContent = now.toLocaleString();
+        }
+    }
+
+    // Missing method: updateWatchlistDisplay
+    updateWatchlistDisplay(symbol, data) {
+        // Update individual stock card in the watchlist display
+        const stockCard = document.querySelector(`[data-ticker="${symbol}"]`);
+        if (stockCard) {
+            const priceEl = stockCard.querySelector('.current-price');
+            const changeEl = stockCard.querySelector('.price-change');
+            const volumeEl = stockCard.querySelector('.volume');
+            
+            if (priceEl) {
+                priceEl.textContent = this.formatCurrency(data.current_price, data.currency);
+            }
+            
+            if (changeEl) {
+                const changeText = `${data.change >= 0 ? '+' : ''}${data.change.toFixed(2)} (${data.change_percent.toFixed(2)}%)`;
+                changeEl.textContent = changeText;
+                changeEl.className = `price-change ${data.change >= 0 ? 'positive' : 'negative'}`;
+            }
+
+            if (volumeEl) {
+                volumeEl.textContent = this.formatNumber(data.volume);
+            }
+        }
+    }
+
+    // Missing method: selectPortfolio
+    async selectPortfolio(portfolioId) {
+        const portfolio = this.portfolios.get(portfolioId);
+        if (portfolio) {
+            this.activePortfolio = portfolio;
+            await this.updatePortfolioSummary();
+            await this.updatePortfolioDisplay();
+            
+            // Update portfolio selector
+            const selector = document.getElementById('portfolioSelect');
+            if (selector) {
+                selector.value = portfolioId;
+            }
+            
+            // Show delete button
+            const deleteBtn = document.getElementById('deletePortfolioBtn');
+            if (deleteBtn) {
+                deleteBtn.style.display = 'block';
+                deleteBtn.style.visibility = 'visible';
+                deleteBtn.style.opacity = '1';
+            }
+            
+            this.showStatus(`Portfolio "${portfolio.name}" selected`, 'success');
         }
     }
 
@@ -3021,19 +3371,19 @@ class EnhancedHeader {
         
         // Add price alerts toggle with delay to ensure all scripts are loaded
         setTimeout(() => {
-            if (typeof createPriceAlertsToggle === 'function') {
+            if (typeof createPriceAlertsButton === 'function') {
                 try {
-                    createPriceAlertsToggle();
-                    console.log('✅ Price alerts toggle initialized successfully');
+                    createPriceAlertsButton();
+                    console.log('✅ Price alerts button initialized successfully');
                 } catch (error) {
-                    console.error('❌ Price alerts toggle initialization failed:', error);
+                    console.error('❌ Price alerts button initialization failed:', error);
                 }
             } else {
-                console.warn('⚠️ createPriceAlertsToggle function not found. Retrying in 1 second...');
+                console.warn('⚠️ createPriceAlertsButton function not found. Retrying in 1 second...');
                 setTimeout(() => {
-                    if (typeof createPriceAlertsToggle === 'function') {
-                        createPriceAlertsToggle();
-                        console.log('✅ Price alerts toggle initialized successfully (retry)');
+                    if (typeof createPriceAlertsButton === 'function') {
+                        createPriceAlertsButton();
+                        console.log('✅ Price alerts button initialized successfully (retry)');
                     } else {
                         console.error('❌ Price alerts function still not available after retry');
                     }
@@ -3075,26 +3425,49 @@ class EnhancedHeader {
         const refreshBtn = document.getElementById('refreshAllData');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => {
-                this.refreshAllData();
+                this.manualRefreshAll();
             });
         }
     }
 
-    refreshAllData() {
+    manualRefreshAll() {
         const refreshBtn = document.getElementById('refreshAllData');
+        const autoRefreshStatus = document.getElementById('autoRefreshStatus');
+        
         if (refreshBtn) {
+            // Add spinning animation to refresh button
             const icon = refreshBtn.querySelector('i');
             if (icon) {
-                icon.style.animation = 'spin 1s linear';
-                setTimeout(() => {
-                    icon.style.animation = '';
-                }, 1000);
+                icon.classList.add('fa-spin');
+                setTimeout(() => icon.classList.remove('fa-spin'), 2000);
             }
         }
         
-        // Refresh all data sources
-        if (window.tradingPlatform) {
-            window.tradingPlatform.refreshAllStocks();
+        // Update auto-refresh status
+        if (autoRefreshStatus) {
+            const statusSpan = autoRefreshStatus.querySelector('span');
+            if (statusSpan) {
+                statusSpan.textContent = 'Refreshing...';
+                setTimeout(() => {
+                    statusSpan.textContent = 'Auto: 3s';
+                }, 2000);
+            }
+        }
+        
+        // Trigger the comprehensive data refresh (call the method from the trading platform instance)
+        if (window.tradingPlatform && window.tradingPlatform.refreshAllData) {
+            window.tradingPlatform.refreshAllData();
+        }
+        
+        // Also update current time and last refresh
+        this.updateLastRefreshTime();
+    }
+    
+    updateLastRefreshTime() {
+        const lastUpdateEl = document.getElementById('lastUpdateTime');
+        if (lastUpdateEl) {
+            const now = new Date();
+            lastUpdateEl.textContent = `Updated: ${now.toLocaleTimeString()}`;
         }
     }
 
@@ -3110,31 +3483,32 @@ class EnhancedHeader {
                 e.preventDefault();
                 e.stopPropagation();
                 
-                if (typeof togglePriceAlertsWidget === 'function') {
-                    togglePriceAlertsWidget();
-                } else if (typeof createPriceAlertsToggle === 'function') {
-                    // Try to initialize again
-                    createPriceAlertsToggle();
-                    setTimeout(() => {
-                        if (typeof togglePriceAlertsWidget === 'function') {
-                            togglePriceAlertsWidget();
-                        }
-                    }, 100);
-                } else {
-                    console.error('Price alerts functions not available');
+                // Check if panel already exists and is visible
+                const existingPanel = document.getElementById('priceAlertsContainer');
+                if (existingPanel) {
+                    if (existingPanel.classList.contains('show')) {
+                        // Hide if already showing
+                        existingPanel.classList.remove('show');
+                        return;
+                    } else {
+                        // Show if exists but hidden
+                        existingPanel.classList.add('show');
+                        return;
+                    }
                 }
+                
+                // Create new panel if it doesn't exist
+                if (!window.priceAlertsManager) {
+                    window.priceAlertsManager = new PriceAlertsManager();
+                }
+                window.priceAlertsManager.createAlertsUI();
+                window.priceAlertsManager.showAlertsPanel();
             });
             
             console.log('✅ Price alerts button event listener attached');
         }
     }
 
-    updateLastRefreshTime() {
-        const lastUpdate = document.getElementById('lastUpdateTime');
-        if (lastUpdate) {
-            lastUpdate.textContent = new Date().toLocaleTimeString('en-IN');
-        }
-    }
 }
 
 // Update the DOMContentLoaded initialization
