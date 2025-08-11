@@ -2,7 +2,10 @@
 // Advanced visualizations and sentiment analysis
 class EnhancedMarketIntelligence {
     constructor() {
-        this.baseApi = 'http://localhost:5000/api';
+        // Auto-detect API URL based on environment
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const baseUrl = isLocal ? 'http://localhost:5000' : window.location.origin;
+        this.baseApi = `${baseUrl}/api`;
         this.charts = {};
         this.updateInterval = null;
         this.isInitialized = false;
