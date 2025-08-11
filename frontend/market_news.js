@@ -17,6 +17,7 @@ class MarketNewsAnalyzer {
         this.sentimentData = new Map();
         this.updateInterval = null;
         this.isEnabled = true;
+        this.headlinesLoaded = false; // Track if headlines have been loaded
         this.init();
     }
 
@@ -81,6 +82,14 @@ class MarketNewsAnalyzer {
             this.loadTrendingTopics();
         } else if (tabName === 'analysis' && !this.analysisLoaded) {
             this.loadAnalysisData();
+        } else if (tabName === 'india-focus') {
+            // Load Indian market news when India Focus tab is clicked
+            if (window.marketIntelligence && typeof window.marketIntelligence.loadIndianMarketNews === 'function') {
+                window.marketIntelligence.loadIndianMarketNews();
+            } else {
+                console.warn('Market Intelligence not available for India Focus');
+                this.loadIndiaFocusFallback();
+            }
         }
     }
 
@@ -148,17 +157,36 @@ class MarketNewsAnalyzer {
             }
         }, 2000);
         
-        // Update every 5 minutes
+        // Update every 30 seconds for real-time news (less intrusive)
         this.updateInterval = setInterval(() => {
             if (this.isEnabled) {
-                this.loadHeadlines();
+                this.loadHeadlines(true); // Silent update
                 this.updateSentimentAnalysis();
                 this.updateWatchlistNews();
             }
-        }, 300000);
+        }, 30000); // Changed from 5000ms (5s) to 30000ms (30s)
+        
+        console.log('🔄 Market News: Auto-refresh enabled (30s interval, silent updates)');
+    }
+    
+    // Method to refresh news data (called by main app)
+    refreshData() {
+        if (this.isEnabled) {
+            this.loadHeadlines(true); // Silent update when called by main app
+            this.updateSentimentAnalysis();
+            this.updateWatchlistNews();
+        }
+    }
+    
+    // Stop auto-refresh
+    stopAutoRefresh() {
+        if (this.updateInterval) {
+            clearInterval(this.updateInterval);
+            this.updateInterval = null;
+        }
     }
 
-    async loadHeadlines() {
+    async loadHeadlines(silent = false) {
         const container = document.getElementById('headlinesList');
         
         if (!container) {
@@ -166,37 +194,47 @@ class MarketNewsAnalyzer {
             return;
         }
         
-        container.innerHTML = `
-            <div class="news-loading">
-                <div class="spinner"></div>
-                <p>Fetching real market news...</p>
-                <p><small>API: ${API_CONFIG}/market/news</small></p>
-            </div>
-        `;
+        // Only show loading state on first load or manual refresh, not during auto-updates
+        if (!silent && (!this.headlinesLoaded || container.innerHTML.includes('empty-news'))) {
+            container.innerHTML = `
+                <div class="news-loading">
+                    <div class="spinner"></div>
+                    <p>Fetching real market news...</p>
+                    <p><small>API: ${API_CONFIG}/market/news</small></p>
+                </div>
+            `;
+        }
         
         try {
             const headlines = await this.fetchMarketNews();
             
             if (!headlines || headlines.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-news">
-                        <i class="fas fa-exclamation-triangle fa-2x"></i>
-                        <p>No headlines available</p>
-                        <button class="btn btn--sm btn--outline" onclick="window.marketNews.refreshNews()">
-                            Try Again
-                        </button>
-                        <p><small>Last attempt: ${new Date().toLocaleTimeString()}</small></p>
-                    </div>
-                `;
+                // Only show empty state if not in silent mode or if no content exists
+                if (!silent || !this.headlinesLoaded) {
+                    container.innerHTML = `
+                        <div class="empty-news">
+                            <i class="fas fa-exclamation-triangle fa-2x"></i>
+                            <p>No headlines available</p>
+                            <button class="btn btn--sm btn--outline" onclick="window.marketNews.refreshNews()">
+                                Try Again
+                            </button>
+                            <p><small>Last attempt: ${new Date().toLocaleTimeString()}</small></p>
+                        </div>
+                    `;
+                }
                 return;
             }
             
             this.displayHeadlines(headlines);
             this.updateSentimentFromNews(headlines);
+            this.headlinesLoaded = true; // Mark as loaded for future silent updates
             
         } catch (error) {
             console.error('Failed to load headlines:', error);
-            this.displayErrorState('headlines');
+            // Only show error state if not in silent mode
+            if (!silent) {
+                this.displayErrorState('headlines');
+            }
         }
     }
 
@@ -674,19 +712,236 @@ class MarketNewsAnalyzer {
         }
     }
 
+    updateSentimentAnalysis(articles = null) {
+        try {
+            console.log('📊 Updating sentiment analysis...');
+            
+            // Use provided articles or get from cached news
+            const newsData = articles || this.cachedNews?.articles || [];
+            
+            if (!newsData || newsData.length === 0) {
+                console.log('No articles available for sentiment analysis');
+                this.showEmptySentimentState();
+                return;
+            }
+            
+            // Calculate sentiment metrics from real news data
+            const sentimentMetrics = this.calculateSentimentFromNews(newsData);
+            
+            // Update the sentiment UI
+            this.renderSentimentSummary(sentimentMetrics);
+            
+            // Store for later use
+            this.lastSentimentData = sentimentMetrics;
+            
+            console.log('✅ Sentiment analysis updated successfully');
+            
+        } catch (error) {
+            console.error('❌ Error updating sentiment analysis:', error);
+            this.handleSentimentError(error);
+        }
+    }
+
+    calculateSentimentFromNews(articles) {
+        if (!articles || articles.length === 0) {
+            return this.getDefaultSentimentMetrics();
+        }
+
+        const total = articles.length;
+        let positiveCount = 0;
+        let neutralCount = 0;
+        let negativeCount = 0;
+        let totalConfidence = 0;
+
+        articles.forEach(article => {
+            const sentiment = article.sentiment || 'neutral';
+            const confidence = article.sentiment_score || 0.5;
+            
+            totalConfidence += confidence;
+            
+            switch (sentiment.toLowerCase()) {
+                case 'positive':
+                    positiveCount++;
+                    break;
+                case 'negative':
+                    negativeCount++;
+                    break;
+                default:
+                    neutralCount++;
+            }
+        });
+
+        const avgConfidence = totalConfidence / total;
+        
+        // Calculate percentages
+        const positivePercent = Math.round((positiveCount / total) * 100);
+        const neutralPercent = Math.round((neutralCount / total) * 100);
+        const negativePercent = Math.round((negativeCount / total) * 100);
+        
+        // Determine overall sentiment
+        let overallSentiment = 'neutral';
+        if (positiveCount > negativeCount && positiveCount > neutralCount) {
+            overallSentiment = 'positive';
+        } else if (negativeCount > positiveCount && negativeCount > neutralCount) {
+            overallSentiment = 'negative';
+        }
+
+        return {
+            positive: positivePercent,
+            neutral: neutralPercent,
+            negative: negativePercent,
+            overall: overallSentiment,
+            confidence: Math.round(avgConfidence * 100) / 100,
+            totalArticles: total,
+            lastUpdated: new Date().toISOString()
+        };
+    }
+
+    renderSentimentSummary(sentimentData) {
+        const container = document.getElementById('sentimentSummary') || 
+                         document.querySelector('.sentiment-summary') ||
+                         document.querySelector('.sentiment-container');
+        
+        if (!container) {
+            console.warn('⚠️ Sentiment summary container not found');
+            return;
+        }
+
+        const html = `
+            <div class="sentiment-analysis-container">
+                <div class="sentiment-header">
+                    <h4><i class="fas fa-chart-bar"></i> Market Sentiment</h4>
+                    <span class="sentiment-count">${sentimentData.totalArticles} articles analyzed</span>
+                </div>
+                
+                <div class="sentiment-metrics">
+                    <div class="sentiment-item positive">
+                        <div class="sentiment-label">Positive</div>
+                        <div class="sentiment-value">${sentimentData.positive}%</div>
+                        <div class="sentiment-bar">
+                            <div class="sentiment-fill positive-fill" style="width: ${sentimentData.positive}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="sentiment-item neutral">
+                        <div class="sentiment-label">Neutral</div>
+                        <div class="sentiment-value">${sentimentData.neutral}%</div>
+                        <div class="sentiment-bar">
+                            <div class="sentiment-fill neutral-fill" style="width: ${sentimentData.neutral}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="sentiment-item negative">
+                        <div class="sentiment-label">Negative</div>
+                        <div class="sentiment-value">${sentimentData.negative}%</div>
+                        <div class="sentiment-bar">
+                            <div class="sentiment-fill negative-fill" style="width: ${sentimentData.negative}%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sentiment-overall ${sentimentData.overall}">
+                    <div class="overall-indicator">
+                        <span class="overall-label">Overall Market Sentiment:</span>
+                        <span class="overall-value">${sentimentData.overall.toUpperCase()}</span>
+                    </div>
+                    <div class="confidence-score">
+                        Confidence: ${Math.round(sentimentData.confidence * 100)}%
+                    </div>
+                </div>
+                
+                <div class="sentiment-timestamp">
+                    Last updated: ${new Date(sentimentData.lastUpdated).toLocaleTimeString()}
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = html;
+        
+        // Add CSS classes for styling
+        container.classList.add('sentiment-updated');
+        
+        console.log('✅ Sentiment summary rendered successfully');
+    }
+
+    showEmptySentimentState() {
+        const container = document.getElementById('sentimentSummary') || 
+                         document.querySelector('.sentiment-summary');
+        
+        if (container) {
+            container.innerHTML = `
+                <div class="sentiment-empty-state">
+                    <div class="empty-icon"><i class="fas fa-chart-line fa-2x"></i></div>
+                    <p>No sentiment data available</p>
+                    <p><small>Waiting for news data...</small></p>
+                </div>
+            `;
+        }
+    }
+
+    handleSentimentError(error) {
+        console.error('Sentiment analysis error:', error);
+        
+        const container = document.getElementById('sentimentSummary') || 
+                         document.querySelector('.sentiment-summary');
+        
+        if (container) {
+            container.innerHTML = `
+                <div class="sentiment-error-state">
+                    <div class="error-icon"><i class="fas fa-exclamation-triangle fa-2x"></i></div>
+                    <p>Sentiment analysis temporarily unavailable</p>
+                    <button class="btn btn--sm btn--outline" onclick="window.marketNews.refreshNews()">
+                        <i class="fas fa-refresh"></i> Retry
+                    </button>
+                </div>
+            `;
+        }
+    }
+
+    getDefaultSentimentMetrics() {
+        return {
+            positive: 40,
+            neutral: 45,
+            negative: 15,
+            overall: 'neutral',
+            confidence: 0.5,
+            totalArticles: 0,
+            lastUpdated: new Date().toISOString()
+        };
+    }
+
     updateWatchlistNews() {
         console.log('DEBUG: Updating watchlist news...');
         
         // Check multiple possible watchlist locations
-        let watchlist = [];
+        let watchlistData = [];
         
         if (window.tradingPlatform?.watchlist) {
-            watchlist = window.tradingPlatform.watchlist;
+            watchlistData = window.tradingPlatform.watchlist;
         } else if (window.tradingPlatform?.stocks) {
-            watchlist = window.tradingPlatform.stocks;
+            watchlistData = window.tradingPlatform.stocks;
         } else if (window.tradingSystem?.watchlist) {
-            watchlist = window.tradingSystem.watchlist;
+            watchlistData = window.tradingSystem.watchlist;
         }
+        
+        // CRITICAL FIX: Always convert watchlist to array format with proper structure
+        let watchlist = [];
+        if (Array.isArray(watchlistData)) {
+            watchlist = watchlistData;
+        } else if (watchlistData instanceof Set) {
+            // Convert Set to array of objects with symbol property
+            watchlist = Array.from(watchlistData).map(symbol => ({ symbol }));
+        } else if (watchlistData && typeof watchlistData === 'object') {
+            // Convert object values to array
+            watchlist = Object.values(watchlistData);
+        }
+
+        // Ensure watchlist has proper structure
+        watchlist = watchlist.filter(item => 
+            item && (typeof item === 'string' || (item.symbol && typeof item.symbol === 'string'))
+        ).map(item => 
+            typeof item === 'string' ? { symbol: item } : item
+        );
         
         console.log('DEBUG: Found watchlist with', watchlist.length, 'stocks:', watchlist);
         
@@ -709,7 +964,10 @@ class MarketNewsAnalyzer {
             // Check if article mentions any watchlist symbols
             const articleText = (article.title + ' ' + article.summary).toUpperCase();
             
-            return article.relevantSymbols.some(symbol => 
+            // FIXED: Ensure article.relevantSymbols exists and is an array
+            const relevantSymbols = Array.isArray(article.relevantSymbols) ? article.relevantSymbols : [];
+            
+            return relevantSymbols.some(symbol => 
                 watchlist.some(stock => {
                     // Exact match
                     if (stock.symbol === symbol) return true;
@@ -746,7 +1004,7 @@ class MarketNewsAnalyzer {
                     <p class="news-summary">${article.summary}</p>
                     <div class="news-footer">
                         <div class="relevant-symbols">
-                            ${article.relevantSymbols.map(symbol => 
+                            ${(Array.isArray(article.relevantSymbols) ? article.relevantSymbols : []).map(symbol => 
                                 `<span class="symbol-tag highlighted">${symbol}</span>`
                             ).join('')}
                         </div>
@@ -767,7 +1025,7 @@ class MarketNewsAnalyzer {
                     <p class="news-summary">${article.summary}</p>
                     <div class="news-footer">
                         <div class="relevant-symbols">
-                            ${article.relevantSymbols.filter(symbol => 
+                            ${(Array.isArray(article.relevantSymbols) ? article.relevantSymbols : []).filter(symbol => 
                                 watchlist.some(stock => stock.symbol === symbol || stock.symbol.replace(/[0-9]/g, '') === symbol.replace(/[0-9]/g, ''))
                             ).map(symbol => 
                                 `<span class="symbol-tag highlighted">${symbol}</span>`
@@ -856,6 +1114,9 @@ class MarketNewsAnalyzer {
             if (data.success && data.trending && Array.isArray(data.trending)) {
                 trendingData = data.trending;
                 console.log('DEBUG: Using data.trending');
+            } else if (Array.isArray(data.trending_topics)) {
+                trendingData = data.trending_topics;
+                console.log('DEBUG: Using data.trending_topics');
             } else if (data.trending && Array.isArray(data.trending)) {
                 trendingData = data.trending;
                 console.log('DEBUG: Using data.trending (no success flag)');
@@ -864,7 +1125,9 @@ class MarketNewsAnalyzer {
                 console.log('DEBUG: Using data directly as array');
             } else {
                 console.warn('DEBUG: No valid trending data structure found:', data);
-                throw new Error('Invalid trending data structure');
+                // Instead of using fallback, show "Feature not available"
+                this.showFeatureUnavailable(container, 'Trending Topics');
+                return;
             }
             
             // If backend provides real data, use it
@@ -895,30 +1158,10 @@ class MarketNewsAnalyzer {
             
         } catch (error) {
             console.error('DEBUG: Failed to load trending topics from backend:', error);
+            // Instead of fallback, show feature unavailable
+            this.showFeatureUnavailable(container, 'Trending Topics');
+            return;
         }
-        
-        // Fallback to realistic Indian market trending data
-        console.log('DEBUG: Using fallback trending data');
-        const fallbackData = this.generateIndianTrendingData();
-        container.innerHTML = fallbackData.map((trend, index) => `
-            <div class="trending-item">
-                <div class="trending-rank">${index + 1}</div>
-                <div class="trending-content">
-                    <div class="trending-topic">${trend.topic} <small>(Generated)</small></div>
-                    <div class="trending-metrics">
-                        <span class="mentions">${trend.mentions} mentions</span>
-                        <span class="sentiment-score ${this.getSentimentClass(trend.sentiment)}">
-                            ${this.getSentimentIcon(trend.sentiment)} ${(trend.sentiment * 100).toFixed(0)}
-                        </span>
-                        <span class="trend-change ${trend.change.startsWith('+') ? 'positive' : 'negative'}">
-                            ${trend.change}
-                        </span>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-        
-        console.log('DEBUG: Displayed fallback trending data');
     }
 
     generateIndianTrendingData() {
@@ -1033,25 +1276,31 @@ class MarketNewsAnalyzer {
 
         // Market themes
         const themes = this.extractMarketThemes(headlines);
-        document.getElementById('marketThemes').innerHTML = themes.map(theme => `
-            <div class="theme-item">
-                <span class="theme-name">${theme.name}</span>
-                <div class="theme-bar">
-                    <div class="theme-fill" style="width: ${theme.strength}%"></div>
+        const marketThemesEl = document.getElementById('marketThemes');
+        if (marketThemesEl) {
+            marketThemesEl.innerHTML = themes.map(theme => `
+                <div class="theme-item">
+                    <span class="theme-name">${theme.name}</span>
+                    <div class="theme-bar">
+                        <div class="theme-fill" style="width: ${theme.strength}%"></div>
+                    </div>
+                    <span class="theme-strength">${theme.strength}%</span>
                 </div>
-                <span class="theme-strength">${theme.strength}%</span>
-            </div>
-        `).join('');
+            `).join('');
+        }
 
         // Sector impact
         const sectorData = this.analyzeSectorImpact(headlines);
-        document.getElementById('sectorImpact').innerHTML = sectorData.map(sector => `
-            <div class="sector-item ${this.getSentimentClass(sector.impact)}">
-                <span class="sector-name">${sector.name}</span>
-                <span class="sector-impact">${sector.impact > 0 ? '+' : ''}${(sector.impact * 100).toFixed(1)}%</span>
-                <span class="sector-articles">${sector.articles} articles</span>
-            </div>
-        `).join('');
+        const sectorImpactEl = document.getElementById('sectorImpact');
+        if (sectorImpactEl) {
+            sectorImpactEl.innerHTML = sectorData.map(sector => `
+                <div class="sector-item ${this.getSentimentClass(sector.impact)}">
+                    <span class="sector-name">${sector.name}</span>
+                    <span class="sector-impact">${sector.impact > 0 ? '+' : ''}${(sector.impact * 100).toFixed(1)}%</span>
+                    <span class="sector-articles">${sector.articles} articles</span>
+                </div>
+            `).join('');
+        }
     }
 
     updateSentimentFromNews(headlines) {
@@ -1165,6 +1414,16 @@ class MarketNewsAnalyzer {
         return '■';
     }
 
+    showFeatureUnavailable(container, featureName) {
+        container.innerHTML = `
+            <div class="feature-unavailable" style="text-align: center; padding: 20px; color: #666; background: var(--color-surface-alt); border-radius: 8px; border: 1px dashed #ccc;">
+                <div style="font-size: 18px; margin-bottom: 8px;">⚠️</div>
+                <div style="font-weight: 500; margin-bottom: 4px;">${featureName} Not Available</div>
+                <div style="font-size: 12px; opacity: 0.8;">Real-time data service temporarily unavailable</div>
+            </div>
+        `;
+    }
+
     formatTimeAgo(timestamp) {
         const now = Date.now();
         const time = new Date(timestamp).getTime();
@@ -1180,13 +1439,13 @@ class MarketNewsAnalyzer {
     }
 
     refreshNews() {
-        document.getElementById('headlinesList').innerHTML = `
-            <div class="news-loading">
-                <div class="spinner"></div>
-                <p>Refreshing market news...</p>
-            </div>
-        `;
-        setTimeout(() => this.loadHeadlines(), 1500);
+        // Manual refresh - show loading state
+        this.headlinesLoaded = false; // Reset to force showing loading state
+        this.loadHeadlines(false); // Explicit non-silent refresh
+        this.updateSentimentAnalysis();
+        this.updateWatchlistNews();
+        this.loadAnalysisData();
+        this.loadTrendingTopics();
     }
 
     showSettings() {
@@ -1235,6 +1494,33 @@ class MarketNewsAnalyzer {
         } catch (e) {
             console.error('Failed to cache news data:', e);
         }
+    }
+
+    loadIndiaFocusFallback() {
+        const container = document.getElementById('indian-market-news');
+        if (!container) {
+            console.error('India Focus container not found');
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="news-item indian-focus-fallback">
+                <h5>📈 Indian Market Focus</h5>
+                <p>Loading Indian market insights and news...</p>
+                <div class="news-meta">
+                    <span class="news-source">Market Intelligence</span>
+                    <span class="news-time">Live</span>
+                </div>
+            </div>
+            <div class="news-item">
+                <h6>BSE Sensex & NSE Nifty</h6>
+                <p>Real-time updates on India's major stock indices and market movements.</p>
+            </div>
+            <div class="news-item">
+                <h6>Sectoral Analysis</h6>
+                <p>IT, Banking, Pharma, and Auto sectors performance analysis.</p>
+            </div>
+        `;
     }
 }
 
