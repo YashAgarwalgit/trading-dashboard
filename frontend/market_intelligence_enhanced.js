@@ -11,6 +11,10 @@ class EnhancedMarketIntelligence {
         this.isInitialized = false;
         this.watchlistSymbols = [];
         
+        // Race condition protection
+        this.isLoading = false;
+        this.loadingPromise = null;
+        
         // Chart color schemes
         this.colors = {
             primary: '#1FB8CD',
@@ -75,6 +79,16 @@ class EnhancedMarketIntelligence {
 
         this.loadingStates.set(elementId, false);
         element.classList.remove('loading');
+        
+        // CRITICAL FIX: Remove any skeleton content that's blocking actual content
+        const skeletons = element.querySelectorAll('.loading-skeleton, [data-loading="true"]');
+        skeletons.forEach(skeleton => skeleton.remove());
+        
+        // If element is still empty or only has skeleton content, clear it completely
+        if (element.innerHTML.trim() === '' || 
+            element.querySelector('.skeleton-line, .skeleton-content')) {
+            element.innerHTML = '';
+        }
     }
 
     createSkeletonContent(type) {
@@ -264,10 +278,10 @@ class EnhancedMarketIntelligence {
             
             await this.loadMarketData();
             this.setupEventListeners();
-            this.startAutoRefresh();
+            // REMOVED: this.startAutoRefresh() - Auto-refresh disabled for Market Intelligence
             
             this.isInitialized = true;
-            console.log('✅ Enhanced Market Intelligence initialized');
+            console.log('✅ Enhanced Market Intelligence initialized (without auto-refresh)');
             
         } catch (error) {
             console.error('❌ Failed to initialize Market Intelligence:', error);
@@ -276,12 +290,21 @@ class EnhancedMarketIntelligence {
     }
 
     async loadMarketData() {
+        // Less aggressive race condition prevention - allow overlapping requests but throttle them
+        if (this.isLoading) {
+            console.log('Market data loading in progress, will queue update...');
+            // Don't return early - allow the update to proceed after a short delay
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        this.isLoading = true;
+        
         try {
             // Show connection status
             this.showConnectionStatus('loading', 'Fetching market data...');
             
             // Show loading states for key components
-            this.showLoadingState('enhancedMarketOverview', 'card');
+            // REMOVED: this.showLoadingState('enhancedMarketOverview', 'card') - AI Market Overview moved to widget
             this.showLoadingState('fearGreedGauge', 'chart');
             this.showLoadingState('marketBreadthChart', 'chart');
             
@@ -305,7 +328,7 @@ class EnhancedMarketIntelligence {
             this.showConnectionStatus('online', 'Data refreshed');
             
             // Hide loading states
-            this.hideLoadingState('enhancedMarketOverview');
+            // REMOVED: this.hideLoadingState('enhancedMarketOverview') - AI Market Overview moved to widget
             this.hideLoadingState('fearGreedGauge');
             this.hideLoadingState('marketBreadthChart');
             
@@ -315,8 +338,8 @@ class EnhancedMarketIntelligence {
             // Update all components with data freshness tracking
             const updateTimestamp = Date.now();
             this.updateHeader(data);
-            this.updateMarketOverview(data);
-            this.updateDataFreshness('enhancedMarketOverview', updateTimestamp);
+            // REMOVED: this.updateMarketOverview(data) - AI Market Overview moved to separate widget
+            // REMOVED: this.updateDataFreshness('enhancedMarketOverview', updateTimestamp) - No longer needed
             this.updateMarketAnalytics(data); // <-- Connect analytics here
             this.updateRegimeDashboard(data);
             this.updateFearGreedIndex(data);
@@ -344,13 +367,15 @@ class EnhancedMarketIntelligence {
             this.showConnectionStatus('error', 'Failed to load data');
             
             // Hide loading states on error
-            this.hideLoadingState('enhancedMarketOverview');
+            // REMOVED: this.hideLoadingState('enhancedMarketOverview') - AI Market Overview moved to widget
             this.hideLoadingState('fearGreedGauge');
             this.hideLoadingState('marketBreadthChart');
             
             this.showError('Failed to load market data');
         } finally {
             this.showLoading(false);
+            this.isLoading = false;
+            this.loadingPromise = null;
         }
     }
 
@@ -481,143 +506,28 @@ class EnhancedMarketIntelligence {
     }
 
     updateMarketOverview(data) {
-        // Render into the isolated enhanced container to avoid conflicting with live watchlist UI
+        // AI Market Overview has been moved to a separate widget
+        // This function is now obsolete - the overview is handled by AIMarketOverviewWidget
+        console.log('📝 Market Intelligence: updateMarketOverview called but AI Market Overview moved to widget');
+        
+        // Check if the old container still exists (should not after migration)
         const container = document.getElementById('enhancedMarketOverview');
-        if (!container) return;
-        try {
-            console.log('Market Intelligence Data:', data); // Debug log
-            const indices = data.indices || {};
-            const summary = data.market_summary || 'Market data loading...';
-            
-            // Debug the specific data that's causing issues
-            console.log('Fear & Greed:', data.fear_greed_index);
-            console.log('Market Breadth:', data.market_breadth);
-            console.log('VIX Data:', indices.vix);
-            
-            // Enhanced analysis
-            let detailedSummary = summary;
-            if (data && data.stocks) {
-                const stocks = Array.isArray(data.stocks) ? data.stocks : Object.values(data.stocks);
-                const gainers = stocks.filter(s => s.change_percent > 0);
-                const losers = stocks.filter(s => s.change_percent < 0);
-                const avgChange = stocks.length > 0 ? (stocks.reduce((a, s) => a + s.change_percent, 0) / stocks.length) : 0;
-                detailedSummary += `<br/><strong>Market Breadth:</strong> ${gainers.length} gainers, ${losers.length} losers.<br/>`;
-                detailedSummary += `<strong>Average Change:</strong> ${avgChange.toFixed(2)}%.<br/>`;
-                if (avgChange > 0.5) {
-                    detailedSummary += '<span style="color:green">Bullish momentum is building across the watchlist.</span>';
-                } else if (avgChange < -0.5) {
-                    detailedSummary += '<span style="color:red">Bearish sentiment dominates the current session.</span>';
-                } else {
-                    detailedSummary += 'Market is trading sideways with no clear trend.';
-                }
-                if (gainers.length > losers.length) {
-                    detailedSummary += '<br/>More stocks are advancing than declining.';
-                } else if (losers.length > gainers.length) {
-                    detailedSummary += '<br/>Decliners outnumber advancers, caution advised.';
-                }
-                // Highlight top gainer/loser
-                if (stocks.length > 0) {
-                    const topGainer = stocks.reduce((a, b) => a.change_percent > b.change_percent ? a : b);
-                    const topLoser = stocks.reduce((a, b) => a.change_percent < b.change_percent ? a : b);
-                    detailedSummary += `<br/><strong>Top Gainer:</strong> ${topGainer.symbol} (${topGainer.change_percent.toFixed(2)}%)`;
-                    detailedSummary += `<br/><strong>Top Loser:</strong> ${topLoser.symbol} (${topLoser.change_percent.toFixed(2)}%)`;
-                }
-            }
-            let html = `
-                <div class="ai-market-summary-card">
-                    <div class="ai-summary-header">
-                        <h4><i class="fas fa-brain pulse-icon"></i> AI Market Analysis</h4>
-                        <div class="ai-badge">
-                            <i class="fas fa-robot"></i>
-                            <span>Live Intelligence</span>
-                        </div>
-                    </div>
-                    <div class="ai-summary-content">
-                        <p class="market-analysis-text">${detailedSummary}</p>
-                        <div class="summary-metrics">
-                            <div class="metric-badge fear-greed">
-                                <span class="metric-label">Fear & Greed</span>
-                                <span class="metric-value">${data.fear_greed_index?.score ? Math.round(data.fear_greed_index.score) : 'N/A'}</span>
-                            </div>
-                            <div class="metric-badge breadth">
-                                <span class="metric-label">Market Breadth</span>
-                                <span class="metric-value">${data.market_breadth?.breadth_score !== undefined && data.market_breadth?.breadth_score !== null ? Math.round(data.market_breadth.breadth_score) + '%' : 'N/A'}</span>
-                            </div>
-                            <div class="metric-badge volatility">
-                                <span class="metric-label">VIX Level</span>
-                                <span class="metric-value">${indices.vix?.price ? indices.vix.price.toFixed(1) : 'N/A'}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="summary-timestamp">
-                        <i class="fas fa-clock"></i>
-                        Analysis updated: ${new Date(data.timestamp).toLocaleTimeString()}
-                    </div>
-                </div>
-                <div class="indices-grid">
-                    ${this.createIndexCard('S&P 500', indices.sp500, 'fas fa-chart-line')}
-                    ${this.createIndexCard('NASDAQ', indices.nasdaq, 'fas fa-microchip')}
-                    ${this.createIndexCard('Nifty 50', indices.nifty50, 'fas fa-rupee-sign')}
-                    ${this.createIndexCard('Bank Nifty', indices.banknifty, 'fas fa-university')}
-                    ${this.createIndexCard('VIX', indices.vix, 'fas fa-exclamation-triangle')}
-                    ${this.createIndexCard('Dollar Index', indices.dxy, 'fas fa-dollar-sign')}
-                    ${this.createIndexCard('Gold', indices.gold, 'fas fa-coins')}
-                    ${this.createIndexCard('Crude Oil', indices.crude, 'fas fa-oil-can')}
-                    ${this.createIndexCard('Bitcoin', indices.bitcoin, 'fab fa-bitcoin')}
+        if (container) {
+            console.warn('⚠️ Old enhancedMarketOverview container still exists - should be removed');
+            container.innerHTML = `
+                <div class="migration-notice">
+                    <i class="fas fa-info-circle"></i>
+                    <h3>AI Market Overview Moved</h3>
+                    <p>The AI Market Overview is now available as a header widget. Click the "AI Market Overview" button in the header to access it.</p>
                 </div>
             `;
-            // India Focus panel (data-driven)
-            const ifocus = data.india_focus || {};
-            console.log('India Focus Raw Data:', ifocus);
-            console.log('India Focus Indices:', ifocus.indices);
-            
-            const indiaKeys = [
-              ['Nifty 50', 'nifty50'],
-              ['Bank Nifty', 'banknifty'],
-              ['Nifty IT', 'niftyit'],
-              ['Nifty Pharma', 'niftypharma'],
-              ['Nifty Auto', 'niftyauto'],
-              ['Nifty FMCG', 'niftyfmcg'],
-              ['Nifty PSU Bank', 'niftypsubank'],
-              ['Nifty Metal', 'niftymetal'],
-              ['Nifty Infra', 'niftyinfra'],
-              ['Nifty Energy', 'niftyenergy'],
-              ['India VIX', 'indiavix']
-            ];
-            
-            const isFiniteNum = (v) => typeof v === 'number' && isFinite(v);
-            const indiaIndices = ifocus.indices || {};
-            console.log('Processed India indices:', indiaIndices);
-            
-            let indiaCards = indiaKeys.map(([label, key]) => {
-              const obj = indiaIndices[key];  // FIX: Access from ifocus.indices
-              console.log(`Processing ${label} (${key}):`, obj);
-              if (!obj) return '';
-              if (!isFiniteNum(obj.price) || !isFiniteNum(obj.change_percent)) return '';
-              return this.createIndexCard(label, obj, 'fas fa-chart-area');
-            }).filter(Boolean).join('');
-            
-            // Add currency/commodities from india_focus.currency_commodities
-            const currencyComm = ifocus.currency_commodities || {};
-            if (currencyComm.usdinr && isFiniteNum(currencyComm.usdinr.price)) {
-                const usdinrCard = this.createIndexCard('USD/INR', currencyComm.usdinr, 'fas fa-exchange-alt');
-                indiaCards += usdinrCard;
-            }
-            
-            console.log(`Generated ${indiaCards ? 'cards' : 'no cards'} for India Focus`);
-            
-            html += `
-              <div class="market-summary-card">
-                <h4><i class="fas fa-flag"></i> India Focus</h4>
-                <div class="indices-grid">
-                  ${indiaCards || '<div class="empty-state"><p>No valid India data available</p></div>'}
-                </div>
-              </div>
-            `;
-            this.updateElementContent(container, html);
-        } catch (error) {
-            console.error('Error updating market overview:', error);
-            this.updateElementContent(container, '<div class="error-message">Error loading market overview</div>');
+        }
+        
+        // If the widget exists and is visible, update it with the new data
+        if (window.aiMarketWidget && window.aiMarketWidget.isVisible && data) {
+            console.log('🔄 Updating AI Market Overview Widget with new data');
+            window.aiMarketWidget.currentData = data;
+            window.aiMarketWidget.renderOverview(data);
         }
     }
 
@@ -1312,7 +1222,7 @@ class EnhancedMarketIntelligence {
         // Refresh button
         const refreshBtn = document.querySelector('.market-refresh-btn');
         if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => this.loadMarketData());
+            refreshBtn.addEventListener('click', () => this.refreshData());
         }
         
         // Tab switching for market intelligence
@@ -1341,24 +1251,26 @@ class EnhancedMarketIntelligence {
         if (tabContent) tabContent.classList.add('active');
     }
 
-    startAutoRefresh() {
-        // Clear existing interval
-        if (this.updateInterval) {
-            clearInterval(this.updateInterval);
-        }
-        
-        // Refresh every 5 seconds for real-time data
-        this.updateInterval = setInterval(() => {
-            this.refreshData();
-        }, 5000);
-        
-        console.log('🔄 Market Intelligence: Auto-refresh enabled (5s interval)');
-    }
+    // REMOVED: startAutoRefresh() - No longer needed since AI Market Overview is extracted
+    // Auto-refresh functionality disabled to prevent unnecessary API calls
+    // Market Intelligence tab now refreshes only on manual request
     
     // Method to refresh data (called by main app)
     refreshData() {
+        // Allow refresh if not currently loading OR if enough time has passed
+        const now = Date.now();
+        const lastRefresh = this.lastRefreshTime || 0;
+        const timeSinceLastRefresh = now - lastRefresh;
+        
+        if (this.isLoading && timeSinceLastRefresh < 2000) {
+            console.log('Refresh throttled - recent refresh in progress');
+            return;
+        }
+        
         if (this.isInitialized) {
-            this.loadMarketData();
+            this.lastRefreshTime = now;
+            this.loadingPromise = this.loadMarketData();
+            return this.loadingPromise;
         }
     }
     
