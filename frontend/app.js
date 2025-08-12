@@ -1853,8 +1853,15 @@ class InstitutionalTradingPlatform {
                 // Update last refresh time in header
                 if (typeof this.updateLastRefreshTime === 'function') {
                     this.updateLastRefreshTime();
+                } else if (typeof window.tradingPlatform?.updateLastRefreshTime === 'function') {
+                    window.tradingPlatform.updateLastRefreshTime();
                 } else {
-                    console.warn('updateLastRefreshTime method not available');
+                    // Fallback: update directly
+                    const lastUpdateEl = document.getElementById('lastUpdateTime');
+                    if (lastUpdateEl) {
+                        const now = new Date();
+                        lastUpdateEl.textContent = `Updated: ${now.toLocaleTimeString()}`;
+                    }
                 }
             } else {
                 throw new Error('Failed to fetch portfolio data');
